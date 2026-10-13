@@ -1,0 +1,57 @@
+# Push a tag like v1.0.0: tests run, then the app is built on each OS and attached to a GitHub Release.
+name: release
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  test:
+    runs-on: ubuntu-22.04
+    env:
+      QT_QPA_PLATFORM: offscreen
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.12"}
+      - run: sudo apt-get update && sudo apt-get install -y libegl1 libgl1 libxkbcommon0 libfontconfig1
+      - run: pip install -r requirements-dev.txt
+      - run: python -m pytest -q tests
+
+  build:
+    needs: test
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {os: ubuntu-22.04, asset: QuranVideoCreator-x86_64.AppImage}
+          - {os: windows-latest, asset: QuranVideoCreator-windows-x64.zip}
+          - {os: macos-14, asset: QuranVideoCreator-macos-arm64.dmg}  # Apple Silicon only
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.12"}
+      - if: runner.os == 'Linux'  # Qt's X11 libraries, bundled into the AppImage
+        run: sudo apt-get update && sudo apt-get install -y libegl1 libgl1 libxkbcommon0 libxkbcommon-x11-0 libfontconfig1 libxcb-cursor0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 libxcb-randr0 libxcb-render-util0 libxcb-shape0 libxcb-xinerama0 libfuse2
+      - run: pip install -r requirements-dev.txt
+      - run: pyinstaller --noconfirm packaging/quran_video.spec
+      - if: runner.os == 'Linux'
+        run: packaging/build_appimage.sh
+      - if: runner.os == 'Windows'
+        run: Compress-Archive -Path dist/QuranVideoCreator -DestinationPath dist/${{ matrix.asset }}
+      - if: runner.os == 'macOS'
+        run: hdiutil create -volname "Quran Video Creator" -srcfolder dist/QuranVideoCreator.app -ov -format UDZO dist/${{ matrix.asset }}
+      - uses: actions/upload-artifact@v4
+        with: {name: "${{ matrix.asset }}", path: "dist/${{ matrix.asset }}"}
+      - if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/${{ matrix.asset }}
+          body: |
+            Downloads below. Unsigned builds: see "Install" in the README for the one-time security prompt.
+            Every video comes with a `.credits.txt` file: put those credits in your caption (Quran Foundation terms).
+            FFmpeg (GPL-3.0) is bundled; its source is at https://ffmpeg.org/releases/ (see THIRD_PARTY.md).

@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Quran Video Creator
+Comment=Make Quran recitation videos
+Exec=QuranVideoCreator
+Icon=quran-video-creator
+Terminal=false
+Categories=AudioVideo;Video;
