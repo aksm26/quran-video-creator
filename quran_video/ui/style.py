@@ -41,7 +41,7 @@ QComboBox:hover, QLineEdit:hover { border-color: @muted; }
 QComboBox:focus, QComboBox:on, QLineEdit:focus { border: 1px solid @accent; }
 QComboBox { combobox-popup: 0; }
 QComboBox::drop-down { border: none; width: 28px; }
-QComboBox::down-arrow { image: url(@ASSETS/down.svg); width: 12px; height: 12px; }
+QComboBox::down-arrow { image: url("@ASSETS/down.svg"); width: 12px; height: 12px; }
 QComboBox QAbstractItemView { background: @card; border: 1px solid @line; border-radius: 6px; padding: 4px; outline: 0;
                               selection-background-color: @accent_soft; selection-color: @text; }
 QComboBox QAbstractItemView::item { min-height: 28px; padding: 0 8px; border-radius: 4px; }
@@ -80,7 +80,7 @@ QCheckBox::indicator, QRadioButton::indicator { width: 16px; height: 16px; borde
 QCheckBox::indicator { border-radius: 4px; }
 QRadioButton::indicator { border-radius: 9px; }
 QCheckBox::indicator:hover, QRadioButton::indicator:hover { border-color: @accent; }
-QCheckBox::indicator:checked { background: @accent; border-color: @accent; image: url(@ASSETS/@check_icon); }
+QCheckBox::indicator:checked { background: @accent; border-color: @accent; image: url("@ASSETS/@check_icon"); }
 QRadioButton::indicator:checked { border: 1px solid @accent;
     background: qradialgradient(cx:0.5, cy:0.5, radius:0.5, fx:0.5, fy:0.5,
                                 stop:0 @accent, stop:0.45 @accent, stop:0.5 @field, stop:1 @field); }

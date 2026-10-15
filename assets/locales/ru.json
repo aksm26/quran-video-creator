@@ -89,7 +89,7 @@
     "Enter a name.": "Введите название.",
     "Recitation videos with the Arabic synced to the reciter.": "Видео с чтением Корана и арабским текстом, синхронным с чтецом.",
     "Data and audio": "Данные и аудио",
-    "Text, translations, reciters and word timing come from Quran.com / Quran.Foundation (Content API v4). Audio comes from quranicaudio.com. The Arabic is shown exactly as the API returns it.": "Текст, переводы, чтецы и тайминг слов — с Quran.com / Quran.Foundation (Content API v4). Аудио — с quranicaudio.com. Арабский текст показан в точности так, как его возвращает API.",
+    "Text, translations, reciters and word timing come from Quran.com / Quran.Foundation (Content API v4). Audio comes from quranicaudio.com. The Arabic is shown exactly as the API returns it.": "Текст, переводы, чтецы и тайминг слов: Quran.com / Quran.Foundation (Content API v4). Аудио: quranicaudio.com. Арабский текст показан в точности так, как его возвращает API.",
     "Fonts": "Шрифты",
     "Icons": "Значки",
     "Video": "Видео",

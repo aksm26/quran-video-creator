@@ -20,7 +20,8 @@ def about_html() -> str:
         f"<p><b>{tr('Icons')}</b><br>"
         '<a href="https://icons.getbootstrap.com">Bootstrap Icons</a> (MIT)</p>'
         f"<p><b>{tr('Video')}</b><br>{tr('FFmpeg, bundled through imageio-ffmpeg.')}</p>"
-        '<p><a href="https://www.gnu.org/licenses/gpl-3.0.html">GPL-3.0</a></p>'
+        '<p><a href="https://www.gnu.org/licenses/gpl-3.0.html">GPL-3.0</a> · '
+        '<a href="https://www.qt.io/qt-for-python">Qt / PySide6</a> (LGPL-3.0)</p>'
     )
 
 

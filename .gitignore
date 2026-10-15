@@ -1,5 +1,6 @@
-.venv/
-venv/
+.venv
+venv
+.claude/
 __pycache__/
 .pytest_cache/
 build/

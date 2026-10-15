@@ -10,7 +10,7 @@ Get the latest version from the **Releases** page of this repository:
 | System | File | First start |
 |---|---|---|
 | Windows 10/11 (64-bit) | `QuranVideoCreator-windows-x64.zip` | Unzip, open `QuranVideoCreator.exe`. If Windows SmartScreen warns, click **More info** > **Run anyway** (the app is not code-signed). |
-| macOS (Apple Silicon) | `QuranVideoCreator-macos-arm64.dmg` | Drag the app to Applications. The first time, right-click it > **Open** > **Open** (the app is not notarized). |
+| macOS (Apple Silicon) | `QuranVideoCreator-macos-arm64.dmg` | Drag the app to Applications and open it. macOS blocks it the first time (the app is not notarized): go to **System Settings** > **Privacy & Security** and click **Open Anyway**. |
 | Linux (x86-64) | `QuranVideoCreator-x86_64.AppImage` | `chmod +x QuranVideoCreator-x86_64.AppImage` and run it. |
 
 The app needs internet: it downloads the text, translations and recitations from the Quran Foundation API.
@@ -60,7 +60,8 @@ The same exports work without the window:
     .venv/bin/python main.py cli --help
 
 On Windows, use `.venv\Scripts\python` instead of `.venv/bin/python`. The built app has the same command line:
-`QuranVideoCreator cli 112 1 4 ...`.
+`QuranVideoCreator cli 112 1 4 ...` (on macOS: `QuranVideoCreator.app/Contents/MacOS/QuranVideoCreator cli ...`).
+The Windows build exports but prints nothing, so use the source install there to see help and progress.
 
 ## How the code works
 

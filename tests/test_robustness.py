@@ -91,9 +91,10 @@ def test_error_when_nothing_cached_and_network_down(tmp_path):
         client(tmp_path, fail_urls=("chapters",)).chapters()
 
 
-def test_retry_policy_covers_rate_limits_and_server_errors(tmp_path):
+def test_retry_policy_retries_server_errors_but_not_rate_limits(tmp_path):
     retry = QuranClient(tmp_path).session.get_adapter("https://proxy.test").max_retries
-    assert {429, 500, 502, 503, 504} <= set(retry.status_forcelist) and retry.total >= 3 and retry.backoff_factor > 0
+    assert {500, 502, 503, 504} <= set(retry.status_forcelist) and retry.total >= 3 and retry.backoff_factor > 0
+    assert 429 not in retry.status_forcelist  # the proxy's limit is per minute: quick retries only add load
 
 
 def test_reciter_with_wrong_timing_data_is_hidden(tmp_path):

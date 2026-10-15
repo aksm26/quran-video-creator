@@ -39,6 +39,16 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y libegl1 libgl1 libxkbcommon0 libxkbcommon-x11-0 libfontconfig1 libxcb-cursor0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 libxcb-randr0 libxcb-render-util0 libxcb-shape0 libxcb-xinerama0 libfuse2
       - run: pip install -r requirements-dev.txt
       - run: pyinstaller --noconfirm packaging/quran_video.spec
+      - name: Smoke test the built app (export one verse through the frozen binary)
+        shell: bash
+        run: |
+          case "$RUNNER_OS" in
+            Windows) exe=dist/QuranVideoCreator/QuranVideoCreator.exe ;;
+            macOS) exe=dist/QuranVideoCreator.app/Contents/MacOS/QuranVideoCreator ;;
+            *) exe=dist/QuranVideoCreator/QuranVideoCreator ;;
+          esac
+          "$exe" cli 1 1 1 --quality "Very low" --out smoke
+          ls smoke/*.mp4  # the Windows build prints nothing, so check the file
       - if: runner.os == 'Linux'
         run: packaging/build_appimage.sh
       - if: runner.os == 'Windows'
@@ -52,6 +62,6 @@ jobs:
         with:
           files: dist/${{ matrix.asset }}
           body: |
-            Downloads below. Unsigned builds: see "Install" in the README for the one-time security prompt.
+            Downloads below. Unsigned builds: see "Download" in the README for the one-time security prompt.
             Every video comes with a `.credits.txt` file: put those credits in your caption (Quran Foundation terms).
             FFmpeg (GPL-3.0) is bundled; its source is at https://ffmpeg.org/releases/ (see THIRD_PARTY.md).

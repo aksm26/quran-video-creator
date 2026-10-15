@@ -79,7 +79,8 @@ class QuranClient:
         self.session = requests.Session()
         self._lock = threading.Lock()  # the UI fetches from several threads; keep cache writes apart
         self.session.headers["User-Agent"] = f"QuranVideoCreator/{__version__}"
-        retry = Retry(total=4, backoff_factor=1, status_forcelist=(429, 500, 502, 503, 504),
+        # 429 is not retried: the proxy limit is per minute, so quick retries only add load
+        retry = Retry(total=4, backoff_factor=1, status_forcelist=(500, 502, 503, 504),
                       allowed_methods=["GET"], respect_retry_after_header=True)
         self.session.mount("https://", HTTPAdapter(max_retries=retry))
 

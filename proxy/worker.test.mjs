@@ -49,3 +49,17 @@ test("rate limit is enforced when the binding exists", async () => {
   const r = await worker.fetch(new Request("https://proxy/v4/chapters"), { ...env, LIMITER: limiter });
   assert.equal(r.status, 429);
 });
+
+test("successful responses are served from the edge cache on repeat", async () => {
+  const store = new Map();
+  globalThis.caches = { default: { match: async (k) => store.get(k)?.clone(), put: async (k, r) => { store.set(k, r); } } };
+  const ctx = { waitUntil: (p) => p };
+  try {
+    const r1 = await worker.fetch(new Request("https://proxy/v4/chapters"), env, ctx);
+    assert.equal(r1.headers.get("Cache-Control"), "public, max-age=86400");
+    assert.equal((await worker.fetch(new Request("https://proxy/v4/chapters"), env, ctx)).status, 200);
+    assert.equal(calls.filter((c) => c.url.startsWith("https://api")).length, 1);
+  } finally {
+    delete globalThis.caches;
+  }
+});

@@ -302,7 +302,7 @@ def export(job: ExportJob, client: QuranClient, progress: Callable[[float], None
             proc.stdin.close()
             if failed or proc.wait() != 0:
                 raise BrokenPipeError
-        except BrokenPipeError:
+        except (BrokenPipeError, OSError):  # Windows raises OSError(EINVAL), not BrokenPipeError, when ffmpeg has died
             stop_writer()
             proc.wait()
             err.seek(0)
