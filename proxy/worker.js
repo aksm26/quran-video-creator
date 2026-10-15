@@ -2,7 +2,13 @@
 // Holds the Quran Foundation client secret so the desktop app never ships it (QF requirement), and forwards only
 // the read-only Content API calls the app makes. Secrets: QF_CLIENT_ID, QF_CLIENT_SECRET (`wrangler secret put`).
 
-const ALLOWED = /^\/v4\/(chapters|verses\/by_chapter\/\d{1,3}|chapter_recitations\/\d{1,4}\/\d{1,3}|resources\/(chapter_reciters|translations))$/;
+// The only API paths the app calls. Anything else gets a 404 and never reaches Quran Foundation.
+const ALLOWED = new RegExp("^/v4/(" + [
+  "chapters",
+  String.raw`verses/by_chapter/\d{1,3}`,
+  String.raw`chapter_recitations/\d{1,4}/\d{1,3}`,
+  "resources/(chapter_reciters|translations)",
+].join("|") + ")$");
 
 let token = null; // {value, expires} kept per worker instance; QF tokens live an hour and have no refresh token
 

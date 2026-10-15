@@ -6,25 +6,27 @@ import time
 import unicodedata
 from pathlib import Path
 
-from PySide6.QtCore import QEvent, QLibraryInfo, QLocale, QRect, QSettings, QSize, Qt, QThreadPool, QTimer, QTranslator, QUrl
+from PySide6.QtCore import (QEvent, QLibraryInfo, QLocale, QRect, QSettings, QSize, Qt, QThreadPool, QTimer,
+                            QTranslator, QUrl)
 from PySide6.QtGui import QDesktopServices, QGuiApplication, QIcon, QPixmap
-from PySide6.QtWidgets import (QApplication, QButtonGroup, QCheckBox, QComboBox, QFileDialog, QFrame, QGraphicsOpacityEffect,
-                               QHBoxLayout,
-                               QLabel, QLineEdit, QMainWindow, QMessageBox, QProgressBar, QPushButton,
-                               QRadioButton, QScrollArea, QSizePolicy, QToolButton, QToolTip, QVBoxLayout, QWidget)
+from PySide6.QtWidgets import (QApplication, QButtonGroup, QCheckBox, QComboBox, QFileDialog, QFrame,
+                               QGraphicsOpacityEffect, QHBoxLayout, QLabel, QLineEdit, QMainWindow, QMessageBox,
+                               QProgressBar, QPushButton, QRadioButton, QScrollArea, QSizePolicy, QToolButton,
+                               QToolTip, QVBoxLayout, QWidget)
 
 from .. import __version__, i18n
-from ..api.client import ApiError, QuranClient
-from ..config.fonts import DEFAULT_FONT, FONT_DIR, FONTS, SURAH_NAME_FONT, SYMBOL_FONT, TRANSLATION_FONT
-from ..config.presets import FORMAT_NOTES, FORMATS
+from ..api.client import DEFAULT_RECITER, ApiError, QuranClient
+from ..config.fonts import DEFAULT_FONT, FONTS, SURAH_NAME_FONT, SYMBOL_FONT, TRANSLATION_FONT
+from ..config.language_names import language_name
+from ..config.presets import DEFAULT_FORMAT, FORMAT_NOTES, FORMATS
 from ..config.quality import DEFAULT_QUALITY, QUALITIES
 from ..config.stops import DEFAULT_STOPS, STOPS, supported
-from ..config.language_names import language_name
 from ..config.themes import DEFAULT_THEME, THEMES, add_custom, custom_themes, is_builtin, make_custom
 from ..config.translations import BY_KEY, TRANSLATIONS, key_for_id
-from ..core.export import Cancelled, ExportJob, credits_path, estimate_bytes, estimate_seconds, export, preview_image, video_info
+from ..core.export import (Cancelled, ExportJob, VideoInfo, credits_path, estimate_bytes, estimate_seconds, export,
+                           preview_image, video_info)
 from ..core.ffmpeg import FFmpegError, is_video
-from ..core.render import SPLIT_PARTS, SPLIT_VERSE, load_font
+from ..core.render import DEFAULT_TEXT_WIDTH, SPLIT_PARTS, SPLIT_VERSE, load_font
 from ..core.timing import DataError, basmala_available
 from ..i18n import tr
 from .about import AboutDialog
@@ -42,9 +44,16 @@ INDENT = 22  # how far a dependent control is indented under the one it depends 
 FADED = 0.35  # opacity of a control that does not apply right now
 ITEM_GAP, GROUP_GAP = 12, 8  # space between controls, and the extra space between groups in a card
 SETTINGS_VERSION = 8  # bump when defaults change so older saved choices don't override them
-FALLBACK_SAMPLE = "بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ"  # shown until the API sample for the font arrives
+# Shown in the font list until the API's own text for each font arrives.
+FALLBACK_SAMPLE = "بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ"
 SLIDERS = {  # name: (minimum %, maximum %, default %)
-    "text_width": (60, 98, 84), "translation_width": (50, 98, 84), "name_size": (50, 200, 100), "dim": (0, 80, 35)}
+    "text_width": (60, 98, round(DEFAULT_TEXT_WIDTH * 100)),
+    "translation_width": (50, 98, round(DEFAULT_TEXT_WIDTH * 100)),
+    "name_size": (50, 200, 100),
+    # A chosen background is usually a busy photo or video, so the window dims it a little from the start
+    # (the command line's --overlay starts at 0).
+    "dim": (0, 80, 35),
+}
 
 
 def friendly(e: Exception) -> str:
@@ -62,13 +71,18 @@ def fmt_duration(seconds: float) -> str:
     s = max(1, round(seconds))
     h, rest = divmod(s, 3600)
     m, sec = divmod(rest, 60)
-    return " ".join(f"{n} {tr(unit if n == 1 else unit + 's')}" for n, unit in ((h, "hour"), (m, "minute"), (sec, "second")) if n)
+    parts = ((h, "hour"), (m, "minute"), (sec, "second"))
+    return " ".join(f"{n} {tr(unit if n == 1 else unit + 's')}" for n, unit in parts if n)
 
 
 def fmt_size(n: int) -> str:
     if n >= 1e9:
         return f"{n / 1e9:.2f} GB"
     return f"{n / 1e6:.1f} MB" if n >= 1e6 else f"{max(1, round(n / 1e3))} KB"
+
+
+def layout_direction() -> Qt.LayoutDirection:
+    return Qt.LayoutDirection.RightToLeft if i18n.is_rtl() else Qt.LayoutDirection.LeftToRight
 
 
 def set_item_enabled(combo: QComboBox, data, enabled: bool) -> None:
@@ -88,12 +102,14 @@ class MainWindow(QMainWindow):
         self.chapters, self.reciters = [], []
         self.ready = False
         self._loading = True
-        self._seq = 0  # preview/info requests; older answers are ignored
+        self._seq = 0  # length/size requests; older answers are ignored
+        self._preview_seq = 0  # the same for preview pictures, which the screen arrows also ask for
+        self._screen = 0  # which screen of the selected verses the preview shows
         self._tasks: set[Task] = set()
         self._cancel = threading.Event()
         self._pixmap: QPixmap | None = None
         self._busy = False
-        self._info: dict | None = None  # the last length/size answer, so a language change can redraw it
+        self._info: VideoInfo | None = None  # the last answer, so a language change can redraw the footer
         self._icons: list[tuple[QWidget, str]] = []  # icons re-tinted when the theme changes
         self._relabels: list = []  # functions that redraw translated text when the language changes
         self._info_line = ("", "muted")  # what the footer line says when no warning is flashing
@@ -104,9 +120,9 @@ class MainWindow(QMainWindow):
         i18n.set_language(str(self.settings.value("language", "en")))
         self._qt_translator: QTranslator | None = None
         self._install_qt_translation(i18n.current)
-        QApplication.setLayoutDirection(Qt.LayoutDirection.RightToLeft if i18n.is_rtl() else Qt.LayoutDirection.LeftToRight)
+        QApplication.setLayoutDirection(layout_direction())
         for path in (*(f.path for f in FONTS.values()), *(f.marker_path for f in FONTS.values()),
-                     SURAH_NAME_FONT, SYMBOL_FONT, TRANSLATION_FONT, FONT_DIR / "Figtree-Regular.ttf"):
+                     SURAH_NAME_FONT, SYMBOL_FONT, TRANSLATION_FONT):
             load_font(path)  # register fonts on the UI thread once; workers then reuse them
         self._build()
         self._timer = QTimer(self, singleShot=True, interval=350)
@@ -246,6 +262,25 @@ class MainWindow(QMainWindow):
         self.preview_fmt.addItems(FORMATS)
         self.preview_fmt.currentTextChanged.connect(self._changed)
         top.addStretch()
+        # Step through every screen of the selected verses: "2 / 7" between two arrows.
+        self.prev_screen, self.next_screen = QPushButton(), QPushButton()
+        self.screen_label = QLabel()
+        self.screen_label.setObjectName("muted")
+        for button, key, step in ((self.prev_screen, "Previous screen", -1), (self.next_screen, "Next screen", 1)):
+            button.setFixedWidth(36)
+            button.clicked.connect(lambda _=False, step=step: self._step_screen(step))
+            self._text(button, key, "setToolTip")
+        # The arrows point the way the text reads, so they swap in right-to-left languages.
+        self._reg(lambda: (self.prev_screen.setText("›" if i18n.is_rtl() else "‹"),
+                           self.next_screen.setText("‹" if i18n.is_rtl() else "›")))
+        self.screen_nav = QWidget()
+        nav = QHBoxLayout(self.screen_nav)
+        nav.setContentsMargins(0, 0, 8, 0)
+        nav.addWidget(self.prev_screen)
+        nav.addWidget(self.screen_label)
+        nav.addWidget(self.next_screen)
+        self.screen_nav.setVisible(False)
+        top.addWidget(self.screen_nav)
         top.addWidget(self.preview_fmt)
         right.addLayout(top)
         self.preview = QLabel()
@@ -322,8 +357,9 @@ class MainWindow(QMainWindow):
         self.surah.currentIndexChanged.connect(self._surah_changed)
         self.from_v.valueChanged.connect(lambda v: self.to_v.setValue(max(v, self.to_v.value())))
         self.to_v.valueChanged.connect(lambda v: self.from_v.setValue(min(v, self.from_v.value())))
-        self.from_v.valueChanged.connect(self._changed)
-        self.to_v.valueChanged.connect(self._changed)
+        for verse in (self.from_v, self.to_v):  # other verses: the preview starts again at their first screen
+            verse.valueChanged.connect(self._first_screen)
+            verse.valueChanged.connect(self._changed)
         self.reciter.currentIndexChanged.connect(self._changed)
         self.basmala.toggled.connect(self._changed)
         form.addWidget(frame)
@@ -502,7 +538,7 @@ class MainWindow(QMainWindow):
             item.addWidget(note)
             lay.addLayout(item)
             self.fmt_boxes[name] = cb
-        self.fmt_boxes["9:16"].setChecked(True)
+        self.fmt_boxes[DEFAULT_FORMAT].setChecked(True)
         lay.addSpacing(GROUP_GAP)
         self.quality = self._combo([(q, q) for q in QUALITIES])
         self.quality.setCurrentIndex(self.quality.findData(DEFAULT_QUALITY))
@@ -541,16 +577,24 @@ class MainWindow(QMainWindow):
         self.status.setText("")
         for c in self.chapters:
             self.surah.addItem(self._surah_label(c), c.id)
-        self._relabels.append(lambda: [self.surah.setItemText(i, self._surah_label(c)) for i, c in enumerate(self.chapters)])
+        self._relabels.append(self._relabel_surahs)
         for r in self.reciters:
             self.reciter.addItem(self._reciter_label(r), r.id)
-        self._relabels.append(lambda: [self.reciter.setItemText(i, self._reciter_label(r)) for i, r in enumerate(self.reciters)])
+        self._relabels.append(self._relabel_reciters)
         self._restore()
         self._loading = False
         self.ready = True
         self._surah_changed()
         self._refresh()
         self._start(self._fetch_samples, self._got_samples)
+
+    def _relabel_surahs(self) -> None:
+        for i, c in enumerate(self.chapters):
+            self.surah.setItemText(i, self._surah_label(c))
+
+    def _relabel_reciters(self) -> None:
+        for i, r in enumerate(self.reciters):
+            self.reciter.setItemText(i, self._reciter_label(r))
 
     def _fetch_samples(self) -> dict[str, str]:
         """The whole Basmala (1:1) in each text field, exactly as the API returns it."""
@@ -607,7 +651,8 @@ class MainWindow(QMainWindow):
         self.video_theme.clear()
         for name, theme in THEMES.items():
             self.video_theme.addItem(QIcon(theme_swatch(theme.bg, theme.highlight)), self._theme_label(name), name)
-        self.video_theme.setCurrentIndex(max(0, self.video_theme.findData(current if current in THEMES else DEFAULT_THEME)))
+        keep = current if current in THEMES else DEFAULT_THEME
+        self.video_theme.setCurrentIndex(max(0, self.video_theme.findData(keep)))
         self.video_theme.blockSignals(False)
 
     @staticmethod
@@ -650,7 +695,8 @@ class MainWindow(QMainWindow):
         current = select or self.translation.currentData()
         self.translation.blockSignals(True)
         self.translation.clear()
-        plain = lambda text: "".join(c for c in unicodedata.normalize("NFKD", text) if not unicodedata.combining(c)).casefold()
+        def plain(text: str) -> str:  # sort "Éspañol" with "Espanol": no accents, no case
+            return "".join(c for c in unicodedata.normalize("NFKD", text) if not unicodedata.combining(c)).casefold()
         keys = sorted((k for k in TRANSLATIONS if k != "None"), key=lambda k: plain(self._translation_label(k)))
         for key in ["None", *keys]:
             self.translation.addItem(self._translation_label(key), key)
@@ -682,7 +728,7 @@ class MainWindow(QMainWindow):
         translation as the default."""
         i18n.set_language(code)
         self._install_qt_translation(code)
-        QApplication.setLayoutDirection(Qt.LayoutDirection.RightToLeft if i18n.is_rtl() else Qt.LayoutDirection.LeftToRight)
+        QApplication.setLayoutDirection(layout_direction())
         for redraw in self._relabels:
             redraw()
         self.translation.setCurrentIndex(self.translation.findData(self._default_translation()))
@@ -693,10 +739,14 @@ class MainWindow(QMainWindow):
     def _chapter(self):
         return next((c for c in self.chapters if c.id == self.surah.currentData()), None)
 
+    def _first_screen(self, *_) -> None:
+        self._screen = 0
+
     def _surah_changed(self) -> None:
         c = self._chapter()
         if not c:
             return
+        self._first_screen()
         for s in (self.from_v, self.to_v):
             s.blockSignals(True)
             s.setMaximum(c.verses_count)
@@ -794,10 +844,10 @@ class MainWindow(QMainWindow):
                 sp.setMaximum(c.verses_count)
             self.from_v.setValue(s.get("from", 1))
             self.to_v.setValue(s.get("to", min(7, c.verses_count)))
-        pick(self.reciter, s.get("reciter", 7))  # Afasy unless the user chose otherwise
+        pick(self.reciter, s.get("reciter", DEFAULT_RECITER))
         for f, cb in self.fmt_boxes.items():
-            cb.setChecked(f in s.get("formats", ["9:16"]))
-        pick(self.preview_fmt, s.get("preview", "9:16"), False)
+            cb.setChecked(f in s.get("formats", [DEFAULT_FORMAT]))
+        pick(self.preview_fmt, s.get("preview", DEFAULT_FORMAT), False)
         pick(self.font, s.get("font", DEFAULT_FONT), False)
         self._update_stops()
         pick(self.highlight, s.get("highlight", "word"))
@@ -839,43 +889,54 @@ class MainWindow(QMainWindow):
         seq = self._seq
         job = self._job(self.preview_fmt.currentText())
         self._start(lambda: video_info(job, self.client), lambda r: self._got_info(seq, r))
-        self._start(lambda: preview_image(job, self.client), lambda r: self._got_preview(seq, r))
+        self._refresh_preview()
 
-    def _got_info(self, seq: int, info: dict) -> None:
+    def _refresh_preview(self) -> None:
+        if not self.ready or self._busy:
+            return
+        self._preview_seq += 1
+        seq, screen = self._preview_seq, self._screen
+        job = self._job(self.preview_fmt.currentText())
+        self._start(lambda: preview_image(job, self.client, screen), lambda r: self._got_preview(seq, r))
+
+    def _step_screen(self, step: int) -> None:
+        self._screen += step  # the core keeps it within the screens there are
+        self._refresh_preview()
+
+    def _got_info(self, seq: int, info: VideoInfo) -> None:
         if seq != self._seq:
             return
         self._info = info
-        ok = info["basmala_ok"]
-        self._set_on(self.basmala_dep, ok)
-        if not ok and self.basmala.isChecked():
+        self._set_on(self.basmala_dep, info.basmala_ok)
+        if not info.basmala_ok and self.basmala.isChecked():
             self.basmala.blockSignals(True)
             self.basmala.setChecked(False)
             self.basmala.blockSignals(False)
             self._toast(tr("Needs verse 1 of a surah other than Al-Fatihah and At-Tawbah."))  # why it switched off
-        bg_seconds = info["bg_seconds"]  # the end option only matters when the video is shorter than the recitation
-        self._set_on(self.bg_end_dep, bg_seconds is not None and bg_seconds < info["seconds"] - 0.05)
+        # The loop/freeze choice only matters when the background video is shorter than the recitation.
+        self._set_on(self.bg_end_dep, info.bg_seconds is not None and info.bg_seconds < info.seconds - 0.05)
         self._apply_info()
 
     def _apply_info(self) -> None:
         info = self._info
-        self.preview_title.setText(f"{tr('Preview')} · {fmt_duration(info['seconds'])}" if info else tr("Preview"))
+        self.preview_title.setText(f"{tr('Preview')} · {fmt_duration(info.seconds)}" if info else tr("Preview"))
         if not info:
             self.export_btn.setText(tr("Export"))
             return
         if self._busy:  # the footer line shows the time left while exporting
             return
         formats = sum(1 for c in self.fmt_boxes.values() if c.isChecked())
-        size = estimate_bytes(info["seconds"], Path(self.bg.text()) if self.bg.text() else None,
-                              self.quality.currentData()) * max(1, formats)
-        wait = estimate_seconds(info["seconds"], self.quality.currentData()) * max(1, formats)
+        bg = Path(self.bg.text()) if self.bg.text() else None
+        size = estimate_bytes(info.seconds, bg, self.quality.currentData()) * max(1, formats)
+        wait = estimate_seconds(info.seconds, bg, self.quality.currentData()) * max(1, formats)
         text, kind = tr("Estimated time: {t}").format(t=fmt_duration(wait)), "muted"
-        if info["problem"]:
-            text, kind = friendly(info["problem_error"]), "error"
+        if info.problem:
+            text, kind = friendly(info.problem), "error"
         self._info_line = (text, kind)
         if not self._toast_timer.isActive():  # a flashing warning is not overwritten
             self._set_info(text, kind)
-        self.export_btn.setEnabled(not info["problem"])
-        self.export_btn.setText(tr("Export") if info["problem"] else f"{tr('Export')} · {fmt_size(size)}")
+        self.export_btn.setEnabled(info.problem is None)
+        self.export_btn.setText(tr("Export") if info.problem else f"{tr('Export')} · {fmt_size(size)}")
 
     def _toast(self, text: str) -> None:
         """A warning that shows in the footer for a few seconds, then gives way to the normal line."""
@@ -895,11 +956,16 @@ class MainWindow(QMainWindow):
         self.info.style().polish(self.info)
         self.info.setText(text)
 
-    def _got_preview(self, seq: int, img) -> None:
-        if seq != self._seq:
+    def _got_preview(self, seq: int, result) -> None:
+        if seq != self._preview_seq:
             return
+        img, self._screen, count = result
         self._pixmap = QPixmap.fromImage(img)
         self._show_pixmap()
+        self.screen_nav.setVisible(count > 1)
+        self.screen_label.setText(f"{self._screen + 1} / {count}")
+        self.prev_screen.setEnabled(self._screen > 0)
+        self.next_screen.setEnabled(self._screen < count - 1)
 
     def _show_pixmap(self) -> None:
         if self._pixmap:
@@ -940,6 +1006,7 @@ class MainWindow(QMainWindow):
     def _set_busy(self, busy: bool) -> None:
         self._busy = busy
         self.form.setEnabled(not busy)
+        self.screen_nav.setEnabled(not busy)
         self.export_btn.setVisible(not busy)
         self.cancel_btn.setVisible(busy)
         self.progress.setValue(0)
@@ -962,7 +1029,7 @@ class MainWindow(QMainWindow):
         self._set_busy(True)
 
         bg = Path(self.bg.text()) if self.bg.text() else None
-        sizes = [estimate_bytes(self._info["seconds"], bg, job.quality) for job in jobs]
+        sizes = [estimate_bytes(self._info.seconds, bg, job.quality) for job in jobs]
         started = time.monotonic()
 
         def run(progress):
@@ -981,7 +1048,12 @@ class MainWindow(QMainWindow):
                     eta = tr("{t} left").format(t=fmt_duration(left)) if left is not None else ""
                     progress(total_f, status + "\n" + eta)
 
-                paths.append(export(job, self.client, report, self._cancel.is_set))  # also writes the credits file
+                def downloading(got, total, i=i):  # the first export of a surah downloads its recitation
+                    text = tr("Downloading the recitation: {done} of {total}")
+                    progress(i / len(jobs), "\n" + text.format(done=fmt_size(got), total=fmt_size(max(total, got))))
+
+                # also writes the credits file
+                paths.append(export(job, self.client, report, self._cancel.is_set, downloading))
                 done += paths[-1].stat().st_size
             return paths
 

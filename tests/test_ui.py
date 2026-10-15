@@ -69,7 +69,8 @@ def test_defaults_and_validation(win):
     assert win.translation.currentData().startswith("English") and win.arabic.isChecked()
     assert win.font.currentText() == "QPC Hafs" and win.highlight.currentData() == "word"
     assert win.reveal.currentData() == "off" and win.hl_fade.isChecked()
-    assert (win.text_width.value(), win.translation_width.value(), win.name_size.value(), win.overlay.value()) == (84, 84, 100, 35)
+    sliders = (win.text_width.value(), win.translation_width.value(), win.name_size.value(), win.overlay.value())
+    assert sliders == (84, 84, 100, 35)
     assert win.video_theme.currentData() == "Classic"
     choose(win.surah, 112)
     assert win.from_v.maximum() == win.to_v.maximum() == 4  # validated against the surah's verse count
@@ -232,7 +233,8 @@ def test_custom_themes_can_be_saved_and_deleted(win):
     danger = [b for b in dlg.findChildren(QPushButton) if b.objectName() == "danger"]
     assert len(danger) == 1  # one red delete button, beside the theme
     danger[0].click()
-    assert "Sunset" not in THEMES and win.video_theme.findData("Sunset") < 0 and win.video_theme.currentData() == "Classic"
+    assert "Sunset" not in THEMES and win.video_theme.findData("Sunset") < 0
+    assert win.video_theme.currentData() == "Classic"
     assert "Sunset" not in win.settings.value("custom_themes")
 
 
@@ -248,7 +250,8 @@ def test_export_two_formats_and_cancel(win, tmp_path):
     assert win._busy and not win.form.isEnabled()
     assert pump(app, lambda: not win._busy)
     names = [p.name for p in (tmp_path / "out").iterdir() if p.suffix == ".mp4"]
-    assert len(names) == 2 and any(n.endswith("_1x1.mp4") for n in names) and any(n.endswith("_9x16.mp4") for n in names)
+    assert len(names) == 2
+    assert any(n.endswith("_1x1.mp4") for n in names) and any(n.endswith("_9x16.mp4") for n in names)
     for n in names:  # Quran Foundation terms: every video comes with its credits
         credits = (tmp_path / "out" / n).with_suffix(".credits.txt").read_text("utf-8")
         assert "Recitation: " in credits and "Quran.Foundation" in credits
@@ -293,7 +296,7 @@ def test_themes_show_their_two_colours_side_by_side(win):
 
 def test_menus_name_languages_in_the_apps_language_and_cover_every_translation(win):
     from quran_video.config.translations import TRANSLATIONS as TR
-    assert win.translation.count() == len(TR) == 126  # all 125 of Quran.com's translations, plus none
+    assert win.translation.count() == len(TR) == 145  # all 144 of Quran.com's translations, plus none
     win._set_language("pt")
     labels = [win.translation.itemText(i) for i in range(win.translation.count())]
     assert any(l.startswith("Espanhol (") for l in labels) and any(l.startswith("Inglês (") for l in labels)
@@ -317,7 +320,7 @@ def test_every_dropdown_is_the_same_fixed_height_and_scrolls(win):
     combos = win.findChildren(QComboBox)
     assert len(combos) >= 12
     assert all(c.maxVisibleItems() == POPUP_ROWS for c in combos)  # none grows with its content
-    assert win.translation.count() == 126 and win.from_v.count() >= 4  # even the longest lists
+    assert win.translation.count() == 145 and win.from_v.count() >= 4  # even the longest lists
     assert "combobox-popup: 0" in win.styleSheet()  # a plain list with a scroll bar, not a stretched pop-over
 
 
@@ -385,8 +388,9 @@ def test_qt_dialogs_follow_the_language_and_reciters_use_each_scripts_name(win):
     assert ask() == "Abbrechen"  # the colour picker and file chooser follow too
     win._set_language("en")
     assert ask() == "Cancel"
-    for code, start in (("ru", "Машари Рашид"), ("hi", "मिशारी"), ("bn", "মিশারি"), ("zh", "米沙里"), ("ja", "ミシャリー"),
-                        ("fa", "مشاری"), ("ar", "مشاري")):
+    starts = {"ru": "Машари Рашид", "hi": "मिशारी", "bn": "মিশারি", "zh": "米沙里", "ja": "ミシャリー",
+              "fa": "مشاری", "ar": "مشاري"}
+    for code, start in starts.items():
         win._set_language(code)
         assert win.reciter.itemText(win.reciter.findData(7)).startswith(start), code
     win._set_language("fr")
@@ -422,3 +426,27 @@ def test_tooltips_are_brief(win, monkeypatch):
     win.lang_btn.setToolTip("Language")
     handled = win.eventFilter(win.lang_btn, QHelpEvent(QEvent.Type.ToolTip, QPoint(3, 3), QPoint(30, 30)))
     assert handled and seen[0][1] == "Language" and seen[0][-1] == TIP_MS == 2500  # shown for 2.5 s, then gone
+
+
+def test_the_preview_steps_through_every_screen(win):
+    app = QApplication.instance()
+    choose(win.surah, 2)
+    win.from_v.setValue(282)
+    win.to_v.setValue(282)  # the longest verse: shown as several screens
+    idle(win)
+    count = int(win.screen_label.text().split(" / ")[1])
+    assert win.screen_nav.isVisible() and win.screen_label.text() == f"1 / {count}" and count > 1
+    assert not win.prev_screen.isEnabled() and win.next_screen.isEnabled()
+    first = win._pixmap.toImage()
+    win.next_screen.click()
+    assert pump(app, lambda: win.screen_label.text() == f"2 / {count}")
+    assert win._pixmap.toImage() != first and win.prev_screen.isEnabled()
+    win.prev_screen.click()
+    assert pump(app, lambda: win.screen_label.text() == f"1 / {count}")
+    win.next_screen.click()
+    assert pump(app, lambda: win.screen_label.text() == f"2 / {count}")
+    win.to_v.setValue(283)  # other verses: back to their first screen
+    idle(win)
+    assert win.screen_label.text().startswith("1 / ")
+    win._set_language("ar")  # reads right to left
+    assert win.prev_screen.text() == "›" and win.prev_screen.toolTip() == i18n.tr("Previous screen")

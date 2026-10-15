@@ -1,3 +1,5 @@
+import json
+
 import pytest
 import requests
 
@@ -33,24 +35,28 @@ class FakeSession:
             raise requests.ConnectionError("down")
         r = requests.Response()
         r.status_code = 200
-        r._content = b'{"chapters": [{"id": 1, "name_arabic": "x", "name_simple": "Al-Fatihah", "verses_count": 7, "bismillah_pre": false}], "reciters": [{"id": 7, "name": "A", "style": {"name": "Murattal"}}, {"id": 158, "name": "J"}]}'
+        r._content = json.dumps({
+            "chapters": [{"id": 1, "name_arabic": "x", "name_simple": "Al-Fatihah", "verses_count": 7,
+                          "bismillah_pre": False}],
+            "reciters": [{"id": 7, "name": "A", "style": {"name": "Murattal"}}, {"id": 158, "name": "J"}],
+        }).encode()
         return r
 
 
 def client(tmp_path, **kw):
     c = QuranClient(tmp_path, base="https://proxy.test")
-    c.s = FakeSession(**kw)
+    c.session = FakeSession(**kw)
     return c
 
 
 def test_second_run_is_served_from_cache(tmp_path):
     c = client(tmp_path)
     c.chapters()
-    assert len(c.s.calls) == 1
+    assert len(c.session.calls) == 1
     c2 = QuranClient(tmp_path, base="https://proxy.test")
-    c2.s = FakeSession()
+    c2.session = FakeSession()
     assert c2.chapters()[0].verses_count == 7
-    assert c2.s.calls == []  # no network
+    assert c2.session.calls == []  # no network
 
 
 def test_reciter_style_may_be_a_name_an_object_or_missing():
@@ -72,12 +78,12 @@ def test_cache_older_than_a_week_is_never_used(tmp_path):
     c.reciters()
     for f in (tmp_path / "api").glob("*.json"):
         os.utime(f, (0, 0))  # make the cached copy ancient
-    c.s = FakeSession(fail_urls=("reciters",))  # network down
+    c.session = FakeSession(fail_urls=("reciters",))  # network down
     with pytest.raises(ApiError):  # QF terms: nothing older than a week may be used
         c.reciters()
-    c.s = FakeSession()
+    c.session = FakeSession()
     c.reciters()
-    assert c.s.calls  # the expired copy is fetched again
+    assert c.session.calls  # the expired copy is fetched again
 
 
 def test_error_when_nothing_cached_and_network_down(tmp_path):
@@ -86,9 +92,62 @@ def test_error_when_nothing_cached_and_network_down(tmp_path):
 
 
 def test_retry_policy_covers_rate_limits_and_server_errors(tmp_path):
-    retry = QuranClient(tmp_path).s.get_adapter("https://proxy.test").max_retries
+    retry = QuranClient(tmp_path).session.get_adapter("https://proxy.test").max_retries
     assert {429, 500, 502, 503, 504} <= set(retry.status_forcelist) and retry.total >= 3 and retry.backoff_factor > 0
 
 
 def test_reciter_with_wrong_timing_data_is_hidden(tmp_path):
     assert [r.id for r in client(tmp_path).reciters()] == [7]  # 158 gets another reciter's timings from QF
+
+
+def test_files_older_than_a_week_are_deleted_at_start(tmp_path):
+    import os
+    import time
+    old, fresh = tmp_path / "audio" / "7_2.mp3", tmp_path / "api" / "x.json"
+    for f in (old, fresh):
+        f.parent.mkdir(exist_ok=True)
+        f.write_text("x")
+    eight_days_ago = time.time() - 8 * 86400
+    os.utime(old, (eight_days_ago, eight_days_ago))
+    QuranClient(tmp_path)
+    assert not old.exists() and fresh.exists()  # QF terms: not kept on disk longer than a week, used or not
+
+
+class FakeDownload:
+    headers = {"Content-Length": "6"}
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        return False
+
+    def raise_for_status(self):
+        pass
+
+    def iter_content(self, size):
+        yield b"abc"
+        yield b"def"
+
+
+class DownloadSession:
+    def get(self, url, stream=False, timeout=None):
+        return FakeDownload()
+
+
+def test_audio_download_reports_progress_and_can_be_stopped(tmp_path):
+    c = QuranClient(tmp_path, base="https://proxy.test")
+    c.session = DownloadSession()
+    seen = []
+    path = c.audio(7, 1, "https://audio.test/1.mp3", lambda done, total: seen.append((done, total)))
+    assert seen == [(3, 6), (6, 6)] and path.read_bytes() == b"abcdef"
+
+    class Stop(Exception):
+        pass
+
+    def stop(done, total):
+        raise Stop  # what a Cancel press does during an export
+
+    with pytest.raises(Stop):
+        c.audio(7, 2, "https://audio.test/2.mp3", stop)
+    assert not (tmp_path / "audio" / "7_2.mp3").exists() and not list((tmp_path / "audio").glob("*.part"))

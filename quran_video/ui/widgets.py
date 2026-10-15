@@ -2,8 +2,8 @@
 
 from PySide6.QtCore import QSize, Qt, Signal
 from PySide6.QtGui import QColor, QFont, QPalette
-from PySide6.QtWidgets import (QApplication, QComboBox, QFrame, QListWidget, QSlider, QVBoxLayout, QStyle, QStyledItemDelegate, QStyleOptionSlider,
-                               QStyleOptionViewItem)
+from PySide6.QtWidgets import (QApplication, QComboBox, QFrame, QListWidget, QSlider, QStyle, QStyledItemDelegate,
+                               QStyleOptionSlider, QStyleOptionViewItem, QVBoxLayout)
 
 POPUP_ROWS = 8  # how many entries every dropdown shows before it scrolls
 FAMILY_ROLE = Qt.ItemDataRole.UserRole + 1
@@ -22,7 +22,8 @@ class NoWheelCombo(QComboBox):
 
 
 class VerseCombo(NoWheelCombo):
-    """A dropdown of verse numbers 1..maximum, with the small spin-box interface the window already uses."""
+    """A dropdown of verse numbers 1..maximum. It offers a spin box's methods (value, setValue, setMaximum,
+    valueChanged), so the window can treat it like one."""
 
     valueChanged = Signal(int)
 
@@ -63,8 +64,9 @@ class NoWheelSlider(QSlider):
         if e.button() == Qt.MouseButton.LeftButton and self.isEnabled():
             opt = QStyleOptionSlider()
             self.initStyleOption(opt)
-            groove = self.style().subControlRect(QStyle.ComplexControl.CC_Slider, opt, QStyle.SubControl.SC_SliderGroove, self)
-            handle = self.style().subControlRect(QStyle.ComplexControl.CC_Slider, opt, QStyle.SubControl.SC_SliderHandle, self)
+            slider = QStyle.ComplexControl.CC_Slider
+            groove = self.style().subControlRect(slider, opt, QStyle.SubControl.SC_SliderGroove, self)
+            handle = self.style().subControlRect(slider, opt, QStyle.SubControl.SC_SliderHandle, self)
             span = max(1, groove.width() - handle.width())
             pos = int(e.position().x()) - groove.x() - handle.width() // 2
             self.setValue(QStyle.sliderValueFromPosition(self.minimum(), self.maximum(), pos, span, opt.upsideDown))
@@ -126,9 +128,10 @@ class ListPopup(QFrame):
                 self.list.setCurrentRow(self.list.count() - 1)
         row = max(28, self.list.sizeHintForRow(0))
         self.resize(max(button.width(), 240), min(len(items), POPUP_ROWS) * row + 12)
-        below = button.mapToGlobal(button.rect().bottomRight() if self.layoutDirection() == Qt.LayoutDirection.LeftToRight
-                                   else button.rect().bottomLeft())
-        x = below.x() - (self.width() if self.layoutDirection() == Qt.LayoutDirection.LeftToRight else 0)
+        left_to_right = self.layoutDirection() == Qt.LayoutDirection.LeftToRight
+        # Open under the button, lined up with its outer edge (the right one, or the left one in RTL languages).
+        below = button.mapToGlobal(button.rect().bottomRight() if left_to_right else button.rect().bottomLeft())
+        x = below.x() - (self.width() if left_to_right else 0)
         self.move(x, below.y() + 4)
         self.show()
         self.list.scrollToItem(self.list.currentItem())

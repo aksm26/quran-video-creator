@@ -53,7 +53,8 @@ def test_stop_signs_follow_the_mushaf_style():
     assert chars_for(("mutlaq", "qif", "mujawwaz"), MADANI) == ""  # not supported in the Madani style: adds nothing
     assert chars_for(("mutlaq", "qif"), INDOPAK) == "\u0615\ue01e"
     assert chars_for(("qila",), MADANI) == "\u06d7" and chars_for(("qila",), INDOPAK) == "\ue01c"
-    assert [s.symbol for s in STOPS.values()] == ["مـ", "ط", "قف", "قلى", "ج", "ز", "صلى"]  # the order and symbols given
+    # the order and the symbols the signs are known by
+    assert [s.symbol for s in STOPS.values()] == ["مـ", "ط", "قف", "قلى", "ج", "ز", "صلى"]
     assert [s.name for s in STOPS.values()] == ["Waqf Lāzim", "Waqf Muṭlaq", "Qif", "Qilā", "Waqf Jā’iz",
                                                 "Waqf Mujawwaz", "Ṣilā"]
 
@@ -63,7 +64,8 @@ def test_indopak_font_cuts_at_its_own_signs():
     from quran_video.api.models import Verse, Word
     from quran_video.core.render import RenderOptions, TextRenderer
     words = tuple(Word(i + 1, t, False) for i, t in enumerate(["a", "b\u0615", "c", "d\ue01e", "e"]))
-    r = TextRenderer(1080, 1920, [Verse("x:1", 1, words)], replace(FONTS["Amiri Quran"], style=INDOPAK),  # no Indo-Pak font ships; the cut logic stays
+    indopak = replace(FONTS["Amiri Quran"], style=INDOPAK)  # no Indo-Pak font ships, but the cut logic stays
+    r = TextRenderer(1080, 1920, [Verse("x:1", 1, words)], indopak,
                      RenderOptions(THEMES["Classic"], stops=("mutlaq", "qif", "qila"), verse_marker=False))
     assert len(r.pages(0)) == 3  # cut after the Muṭlaq word and the Qif word; no word here carries a Qilā sign
 

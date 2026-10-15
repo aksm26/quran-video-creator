@@ -75,17 +75,20 @@ QListWidget::item:selected { background: @accent_soft; color: @text; }
 
 /* checkboxes and radio buttons */
 QCheckBox, QRadioButton { spacing: 9px; }
-QCheckBox::indicator, QRadioButton::indicator { width: 16px; height: 16px; border: 1px solid @line; background: @field; }
+QCheckBox::indicator, QRadioButton::indicator { width: 16px; height: 16px; border: 1px solid @line;
+                                                background: @field; }
 QCheckBox::indicator { border-radius: 4px; }
 QRadioButton::indicator { border-radius: 9px; }
 QCheckBox::indicator:hover, QRadioButton::indicator:hover { border-color: @accent; }
 QCheckBox::indicator:checked { background: @accent; border-color: @accent; image: url(@ASSETS/@check_icon); }
 QRadioButton::indicator:checked { border: 1px solid @accent;
-    background: qradialgradient(cx:0.5, cy:0.5, radius:0.5, fx:0.5, fy:0.5, stop:0 @accent, stop:0.45 @accent, stop:0.5 @field, stop:1 @field); }
+    background: qradialgradient(cx:0.5, cy:0.5, radius:0.5, fx:0.5, fy:0.5,
+                                stop:0 @accent, stop:0.45 @accent, stop:0.5 @field, stop:1 @field); }
 QCheckBox::indicator:disabled, QRadioButton::indicator:disabled { background: @bg; border-color: @border; }
 QCheckBox::indicator:checked:disabled { background: @border; border-color: @border; }
 QRadioButton::indicator:checked:disabled { border-color: @border;
-    background: qradialgradient(cx:0.5, cy:0.5, radius:0.5, fx:0.5, fy:0.5, stop:0 @border, stop:0.45 @border, stop:0.5 @bg, stop:1 @bg); }
+    background: qradialgradient(cx:0.5, cy:0.5, radius:0.5, fx:0.5, fy:0.5,
+                                stop:0 @border, stop:0.45 @border, stop:0.5 @bg, stop:1 @bg); }
 QLabel:disabled, QCheckBox:disabled, QRadioButton:disabled { color: @disabled; }
 
 /* sliders and progress */
@@ -96,7 +99,8 @@ QSlider::handle:horizontal { background: @card; border: 2px solid @accent; width
 QSlider::handle:horizontal:hover { background: @accent_soft; }
 QSlider::sub-page:horizontal:disabled { background: @border; }
 QSlider::handle:horizontal:disabled { background: @bg; border-color: @line; }
-QProgressBar { background: @border; border: none; border-radius: 3px; max-height: 6px; min-height: 6px; text-align: center; }
+QProgressBar { background: @border; border: none; border-radius: 3px; max-height: 6px; min-height: 6px;
+               text-align: center; }
 QProgressBar::chunk { background: @accent; border-radius: 3px; }
 
 /* scroll bars */

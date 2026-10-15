@@ -1,3 +1,5 @@
+"""What the API returns, as plain read-only records."""
+
 from dataclasses import dataclass
 
 

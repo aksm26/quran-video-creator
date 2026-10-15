@@ -3,7 +3,6 @@ import os
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 import pytest
-from PySide6.QtGui import QGuiApplication
 
 from quran_video.api.client import QuranClient
 from quran_video.config.fonts import FONTS
@@ -12,11 +11,6 @@ from quran_video.config.themes import THEMES
 from quran_video.core.export import Prepared, frame_plan
 from quran_video.core.render import RenderOptions, TextRenderer
 from quran_video.core.timing import State
-
-
-@pytest.fixture(scope="module")
-def app():
-    return QGuiApplication.instance()
 
 
 def test_frame_plan_eases_out_swaps_early_and_eases_in():
@@ -28,11 +22,11 @@ def test_frame_plan_eases_out_swaps_early_and_eases_in():
     clips = [Clip(0, 0, 3000, (Seg(1, 0, 2800),)), Clip(1, 3000, 6000, (Seg(1, 3000, 5800),))]
     prep = Prepared(R(), clips, None, 0, 6000, (1080, 1920))
     plan = frame_plan(prep, 30)  # 180 frames; page change at frame 90, swapped in 4 frames earlier (120 ms)
-    a = [f[1] for f in plan]
-    assert a[0] == 1.0 and plan[0][0].verse == 0  # first page appears at once
+    a = [f.alpha for f in plan]
+    assert a[0] == 1.0 and plan[0].state.verse == 0  # first page appears at once
     assert a[85] == 0.0 or a[86] == 0.0  # fully invisible at the swap
-    assert plan[85][0].verse == 0 and plan[86][0].verse == 1  # next verse swapped in before it is recited
-    assert plan[86][0].active is None and plan[86][0].reveal == 0  # ...unlit, and no words revealed yet
+    assert plan[85].state.verse == 0 and plan[86].state.verse == 1  # next verse swapped in before it is recited
+    assert plan[86].state.active is None and plan[86].state.reveal == 0  # ...unlit, and no words revealed yet
     out = a[78:86]
     assert out == sorted(out, reverse=True) and out[0] > 0.5  # eases out
     inn = a[86:100]
@@ -40,7 +34,7 @@ def test_frame_plan_eases_out_swaps_early_and_eases_in():
     # smoothstep: slower at the ends than a straight line
     assert inn[1] < 1 / 12 * 1.0 + 0.05
     assert a[-1] < 0.2  # the last page eases out at the end
-    assert all(f[1] == 1.0 for f in frame_plan(prep, 30, fade=False))
+    assert all(f.alpha == 1.0 for f in frame_plan(prep, 30, fade=False))
 
 
 @pytest.mark.slow_network

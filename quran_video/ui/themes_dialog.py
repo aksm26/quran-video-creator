@@ -8,10 +8,10 @@ from PySide6.QtWidgets import (QColorDialog, QDialog, QDialogButtonBox, QFrame, 
                                QPushButton, QVBoxLayout)
 
 from ..config.fonts import DEFAULT_FONT, FONTS
-from ..config.themes import THEMES, add_custom, custom_themes, is_builtin, make_custom, readable_text, remove_custom
+from ..config.themes import add_custom, custom_themes, is_builtin, make_custom, readable_text, remove_custom
 from ..core.render import load_font
-from .icons import theme_swatch
 from ..i18n import tr
+from .icons import theme_swatch
 
 
 def swatch(color: str, size: int = 18) -> QIcon:
@@ -73,8 +73,11 @@ class ThemesDialog(QDialog):
         self.hl_btn.setIcon(swatch(self.hl))
         family = load_font(FONTS[DEFAULT_FONT].path)
         text = readable_text(self.bg)
-        self.preview.setStyleSheet(f'background: {self.bg}; border-radius: 10px; font-family: "{family}"; font-size: 38px;')
-        self.preview.setText(f'<span style="color:{text}">ٱللَّهُ</span> <span style="color:{self.hl}">أَحَدٌ</span>')
+        self.preview.setStyleSheet(
+            f'background: {self.bg}; border-radius: 10px; font-family: "{family}"; font-size: 38px;')
+        # Two words of 112:1, the second one highlighted, as they would look in a video with this theme.
+        allah, ahad = "ٱللَّهُ", "أَحَدٌ"
+        self.preview.setText(f'<span style="color:{text}">{allah}</span> <span style="color:{self.hl}">{ahad}</span>')
 
     def _pick(self, which: str) -> None:
         current = QColor(self.bg if which == "bg" else self.hl)

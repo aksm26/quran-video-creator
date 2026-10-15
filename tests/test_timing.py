@@ -40,16 +40,19 @@ def test_state_at_highlight_gaps_and_repeats():
 
 def test_translation_markup_is_stripped():
     from quran_video.api.client import clean_translation
-    raw = "Who believe in the unseen, establish prayer,<sup foot_note=195938>1</sup> and spend out of what We<sup foot_note=195937>2</sup> have"
+    raw = ("Who believe in the unseen, establish prayer,<sup foot_note=195938>1</sup> "
+           "and spend out of what We<sup foot_note=195937>2</sup> have")
     assert clean_translation(raw) == "Who believe in the unseen, establish prayer, and spend out of what We have"
 
 
 def test_split_translation_follows_arabic_parts_at_punctuation():
     from quran_video.core.translation import split_translation
-    t = "Allah - there is no deity except Him, the Ever-Living, the Sustainer of existence. Neither drowsiness overtakes Him nor sleep."
+    t = ("Allah - there is no deity except Him, the Ever-Living, the Sustainer of existence. "
+         "Neither drowsiness overtakes Him nor sleep.")
     a, b = split_translation(t, [30, 30])
     assert a.endswith("existence.") or a.endswith("Ever-Living,")  # cut at punctuation near the middle
     assert f"{a} {b}" == t
     assert split_translation(t, [1]) == [t]
-    assert "".join(split_translation("阿拉，除他之外绝无应受崇拜的。他是永生的，自存的。", [1, 1, 1])) == "阿拉，除他之外绝无应受崇拜的。他是永生的，自存的。"
+    chinese = "阿拉，除他之外绝无应受崇拜的。他是永生的，自存的。"  # no spaces: cut between characters
+    assert "".join(split_translation(chinese, [1, 1, 1])) == chinese
     assert all(split_translation("one two three", [1, 1, 1]))  # never an empty piece when words allow

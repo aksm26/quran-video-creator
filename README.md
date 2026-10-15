@@ -1,7 +1,7 @@
 # Quran Video Creator
 
-Makes Quran recitation videos (9:16, 16:9, 1:1, 4:5) with the Arabic synced word by word to the reciter.
-Free and open source (GPL-3.0).
+Makes Quran recitation videos (9:16, 16:9, 1:1, 4:5) with the Arabic synced word by word to the reciter, an
+optional translation under it, and your choice of font, theme and background. Free and open source (GPL-3.0).
 
 ## Download
 
@@ -27,21 +27,81 @@ The app needs internet: it downloads the text, translations and recitations from
 
 ## Run from source
 
-    ./run.sh
+You need [Python](https://www.python.org/downloads/) 3.10 or newer, [Git](https://git-scm.com/downloads) and
+internet. FFmpeg comes with the Python packages, so there is nothing else to install.
 
-The first run creates `.venv` and installs what it needs (Python 3.10+ and internet required).
-On Linux, to add a menu entry, edit `Exec=` in `packaging/quran-video-creator.desktop` to point at `run.sh`, then
-copy it to `~/.local/share/applications/`.
+    git clone https://github.com/aksm26/quran-video-creator.git
+    cd quran-video-creator
 
-Command line, without the window:
+Then start it:
 
-    .venv/bin/python -m quran_video.cli 112 1 4 --reciter 7 --format 9:16 --out out
-    .venv/bin/python -m quran_video.cli --help
+| System | Command |
+|---|---|
+| Linux, macOS | `./run.sh` |
+| Windows | `run.bat` (or double-click it) |
 
-The built app has the same command line: `QuranVideoCreator cli 112 1 4 ...`.
+The first start creates a virtual environment in `.venv` and installs the packages from `requirements.txt`, which
+takes a minute. Later starts are quick.
+
+On Linux, if the window does not open and the error mentions the Qt "xcb" plugin, install one system library:
+`sudo apt install libxcb-cursor0` (Debian, Ubuntu) or `sudo dnf install xcb-util-cursor` (Fedora).
+
+To add a Linux menu entry, edit `Exec=` in `packaging/quran-video-creator.desktop` to point at `run.sh`, then copy
+it to `~/.local/share/applications/`.
 
 Videos are saved to the folder chosen in the app (default `~/Videos`). Downloads are cached for up to 7 days in
 `~/.cache/quran-video`.
+
+### Command line
+
+The same exports work without the window:
+
+    .venv/bin/python main.py cli 112 1 4 --reciter 7 --format 9:16 --out out
+    .venv/bin/python main.py cli --help
+
+On Windows, use `.venv\Scripts\python` instead of `.venv/bin/python`. The built app has the same command line:
+`QuranVideoCreator cli 112 1 4 ...`.
+
+## How the code works
+
+A video is made in four steps. Each step lives in its own module, and nothing under `core/` knows about the window:
+
+    api/client.py      1. download the verses, translation, word timings and audio (cached for 7 days)
+    core/timing.py     2. clean the word timings, and say which word is being recited at any moment
+    core/layout.py     3. fit the words into lines, and draw the text of one frame
+    core/render.py        (the Arabic, its translation and the surah name)
+    core/export.py     4. plan every frame (fades, highlights), stream the frames into ffmpeg with the audio
+    core/ffmpeg.py        and write the MP4 and its .credits.txt
+
+The window (`ui/main_window.py`) and the command line (`cli.py`) both turn the user's choices into an `ExportJob`
+(in `core/export.py`) and hand it to `export()`.
+
+    main.py              starts the window, or the command line with `main.py cli ...`
+    quran_video/
+      api/               the Quran Foundation API client and the records it returns
+      core/              everything that makes the video: timing, layout, drawing, ffmpeg
+      config/            fixed choices: fonts, themes, formats, quality presets, stop signs, translation list
+      ui/                the PySide6 window, its dialogs, widgets and stylesheet
+      i18n.py            interface languages (the texts are in assets/locales/<language>.json)
+      cli.py             the command line
+    assets/              fonts, icons and interface translations
+    proxy/               the Cloudflare Worker that holds the API secret (see below)
+    packaging/           PyInstaller spec, AppImage script, Linux menu entry
+    tools/               regenerates the translation list and the language names
+    tests/               pytest
+
+## Develop
+
+    .venv/bin/pip install -r requirements-dev.txt
+    .venv/bin/python -m pytest -q tests                     # offline tests
+    QVC_API_BASE=https://qvc-proxy.quranvideocreator.workers.dev .venv/bin/python -m pytest -q tests   # all tests
+    node --test proxy/worker.test.mjs                       # proxy tests (Node.js 18+)
+    .venv/bin/pyinstaller packaging/quran_video.spec        # build dist/QuranVideoCreator for this OS
+    packaging/build_appimage.sh                             # Linux: wrap it into an AppImage
+
+The live tests (marked `slow_network`) talk to the real API through the proxy, so they only run when `QVC_API_BASE`
+is set. See [CONTRIBUTING.md](CONTRIBUTING.md) for the project's rules and how to add a language, theme, font or
+format.
 
 ## Run your own API proxy
 
@@ -61,21 +121,13 @@ Release builds point at the maintainer's proxy. To run your own (for a fork, or 
    For pre-production credentials, switch the two URLs in `proxy/wrangler.toml` first.
 3. Point the app at it: `export QVC_API_BASE=https://qvc-proxy.<your-subdomain>.workers.dev`.
 
-Proxy tests: `node --test proxy/worker.test.mjs`. Local run: put `QF_CLIENT_ID=...` and `QF_CLIENT_SECRET=...` in
-`proxy/.dev.vars` (git-ignored) and run `npx wrangler dev`, then `QVC_API_BASE=http://localhost:8787`.
-
-## Develop
-
-    .venv/bin/pip install -r requirements-dev.txt
-    .venv/bin/python -m pytest -q tests                     # tests (live ones run only when QVC_API_BASE is set)
-    .venv/bin/pyinstaller packaging/quran_video.spec        # build dist/QuranVideoCreator for this OS
-    packaging/build_appimage.sh                             # Linux: wrap it into an AppImage
+Local run: put `QF_CLIENT_ID=...` and `QF_CLIENT_SECRET=...` in `proxy/.dev.vars` (git-ignored) and run
+`npx wrangler dev`, then `QVC_API_BASE=http://localhost:8787`.
 
 ## Release
 
-Push a version tag. GitHub Actions runs the tests, builds Windows, macOS and Linux, and attaches them to a Release:
+Bump `__version__` in `quran_video/__init__.py`, then push a version tag. GitHub Actions runs the tests, builds
+Windows, macOS and Linux, and attaches them to a Release:
 
     git tag v1.0.0
     git push origin v1.0.0
-
-Bump `__version__` in `quran_video/__init__.py` first.

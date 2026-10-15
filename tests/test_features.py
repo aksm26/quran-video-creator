@@ -54,13 +54,13 @@ def test_highlight_fade_eases_in_the_new_word_and_out_the_old_one():
     prep = Prepared(R(), clips, None, 0, 2000, (1080, 1920))
     plan = frame_plan(prep, 30, fade=False, hl_fade=True)
     at = lambda ms: plan[round(ms * 30 / 1000)]
-    assert at(100)[2] < 1 and at(100)[3] is None  # word 1 is fading in
-    state, alpha, hl, prev = at(520)  # just after word 2 starts
-    assert state.active == 2 and 0 < hl < 1 and prev == 1  # word 2 in, word 1 out
-    assert at(750)[2] == 1.0 and at(750)[3] is None  # settled
-    ramp = [plan[i][2] for i in range(15, 21)]
+    assert at(100).highlight_progress < 1 and at(100).fading_word is None  # word 1 is fading in
+    state, alpha, progress, fading = at(520)  # just after word 2 starts
+    assert state.active == 2 and 0 < progress < 1 and fading == 1  # word 2 in, word 1 out
+    assert at(750).highlight_progress == 1.0 and at(750).fading_word is None  # settled
+    ramp = [plan[i].highlight_progress for i in range(15, 21)]
     assert ramp == sorted(ramp)  # rises smoothly
-    assert all(f[2] == 1.0 for f in frame_plan(prep, 30, fade=False, hl_fade=False))
+    assert all(f.highlight_progress == 1.0 for f in frame_plan(prep, 30, fade=False, hl_fade=False))
 
 
 def test_highlight_colour_blends_between_text_and_highlight(app):
@@ -141,8 +141,9 @@ def test_video_background_loops_or_freezes(tmp_path):
 def test_media_seconds_and_freeze_really_encode(tmp_path):
     ff = ffmpeg_exe()
     clip, img = tmp_path / "c.mp4", tmp_path / "p.png"
-    subprocess.run([ff, "-y", "-loglevel", "error", "-f", "lavfi", "-i", "testsrc2=s=320x240:r=24:d=2", str(clip)], check=True)
-    subprocess.run([ff, "-y", "-loglevel", "error", "-f", "lavfi", "-i", "testsrc2=s=64x64", "-frames:v", "1", str(img)], check=True)
+    quiet = [ff, "-y", "-loglevel", "error", "-f", "lavfi", "-i"]
+    subprocess.run([*quiet, "testsrc2=s=320x240:r=24:d=2", str(clip)], check=True)
+    subprocess.run([*quiet, "testsrc2=s=64x64", "-frames:v", "1", str(img)], check=True)
     assert abs(media_seconds(clip) - 2.0) < 0.1 and media_seconds(img) is None
     out = tmp_path / "o.mp4"
     audio = tmp_path / "a.wav"
@@ -171,9 +172,10 @@ def test_every_language_covers_every_string_and_placeholders_survive():
 def test_every_quran_translation_is_listed_and_every_language_is_named():
     from quran_video.config.language_names import NAMES, language_name
     from quran_video.config.translations import LIST, TRANSLATIONS, key_for_id
-    assert len(LIST) == 125 and len(TRANSLATIONS) == 126 and len({t.id for t in LIST}) == 125
-    assert len({t.key for t in LIST}) == 125 and len({t.lang for t in LIST}) >= 65
-    assert 57 not in {t.id for t in LIST} and not any("ransliteration" in t.key for t in LIST)  # no transliteration option
+    assert len(LIST) == 144 and len(TRANSLATIONS) == 145 and len({t.id for t in LIST}) == 144
+    assert len({t.key for t in LIST}) == 144 and len({t.lang for t in LIST}) >= 80
+    # no transliteration option
+    assert 57 not in {t.id for t in LIST} and not any("ransliteration" in t.key for t in LIST)
     for ui in i18n.LANGUAGES:
         for t in LIST:
             assert NAMES[ui][t.lang].strip(), (ui, t.lang)
@@ -182,10 +184,21 @@ def test_every_quran_translation_is_listed_and_every_language_is_named():
     assert key_for_id(103) == "Portuguese (Helmi Nasr)" and key_for_id(None) == "None"
 
 
+@pytest.mark.slow_network
+def test_every_listed_translation_still_exists_upstream():
+    """Quran.com answers a dropped translation with empty text, so a video would silently have none."""
+    from quran_video.api.client import QuranClient
+    from quran_video.config.translations import LIST
+    offered = {t["id"] for t in QuranClient()._json("v4/resources/translations")["translations"]}
+    gone = sorted(t.key for t in LIST if t.id not in offered)
+    assert not gone, f"no longer on Quran.com, run tools/generate_language_data.py: {gone}"
+
+
 def test_reciter_names_and_styles_are_translated():
     i18n.set_language("ar")
     try:
-        assert i18n.reciter_name(7, "Mishari Rashid al-`Afasy") == "مشاري راشد العفاسي" and i18n.tr("Murattal") == "مرتل"
+        assert i18n.reciter_name(7, "Mishari Rashid al-`Afasy") == "مشاري راشد العفاسي"
+        assert i18n.tr("Murattal") == "مرتل"
         assert i18n.tr("alternate copy") and i18n.tr("Dusk") == "الغسق"
         i18n.set_language("fr")
         assert i18n.reciter_name(7, "Mishari") == "Mishari" and i18n.tr("Kids repeat") == "Répétition pour enfants"
@@ -272,9 +285,10 @@ def test_highlight_fade_is_smooth_and_starts_a_moment_early():
     clips = [Clip(0, 0, 3000, (Seg(1, 500, 1000), Seg(2, 1000, 3000)))]
     prep = Prepared(R(), clips, None, 0, 3000, (1080, 1920))
     plan = frame_plan(prep, 30, fade=False, hl_fade=True)
-    first = next(i for i, f in enumerate(plan) if f[0].active == 2)
-    assert first * 1000 / 30 < 1000 and first * 1000 / 30 >= 1000 - HIGHLIGHT_LEAD_MS - 34  # lit just before it is heard
-    ramp = [plan[i][2] for i in range(first, first + 8)]
+    first = next(i for i, f in enumerate(plan) if f.state.active == 2)
+    lit_ms = first * 1000 / 30
+    assert 1000 - HIGHLIGHT_LEAD_MS - 34 <= lit_ms < 1000  # lit just before it is heard
+    ramp = [plan[i].highlight_progress for i in range(first, first + 8)]
     steps = [b - a for a, b in zip(ramp, ramp[1:])]
     assert ramp[0] < 1 / (round(HIGHLIGHT_FADE_MS * 30 / 1000) + 1)  # slower than a straight line at the start
     assert max(steps) > 1.4 * steps[0] and ramp[-1] == 1.0  # speeds up in the middle, settles at 1
@@ -303,7 +317,8 @@ def test_timings_for_a_recut_audio_file_are_shifted_back():
     # Words every 1.3 s from 8 s, but the audio had its 7 s intro cut (QF: Dussary, surah 35)
     starts = [8000 + 1300 * k + (k % 3) * 170 for k in range(120)]
     t = [VerseTiming(f"35:{v + 1}", starts[v * 10], starts[v * 10 + 9] + 900,
-                     tuple((k + 1, starts[v * 10 + k], starts[v * 10 + k] + 900) for k in range(10))) for v in range(12)]
+                     tuple((k + 1, starts[v * 10 + k], starts[v * 10 + k] + 900) for k in range(10)))
+         for v in range(12)]
     env = _bursts([a - 7000 for a in starts], 170)
     ms = audio_offset(t, env)
     assert abs(ms + 7000) <= 50
@@ -322,3 +337,71 @@ def test_timings_that_fit_the_audio_are_left_alone(monkeypatch, tmp_path):
     monkeypatch.setattr(export, "envelope", lambda p: [0.0] * 150)
     with pytest.raises(export.DataError, match="doesn't match the audio"):
         export.fit_to_audio(t, tmp_path / "a.mp3", "x")
+
+
+# ---- a translation Quran.com no longer serves, screens, and the solid-background encode
+class FakeClient:
+    """Surah 112 with one word per verse, and a translation text that may be empty."""
+
+    def __init__(self, translation_text):
+        self.text = translation_text
+
+    def verses(self, chapter, text_field="text_uthmani", translation=None):
+        return [Verse(f"112:{n}", n, (Word(1, "قُلْ", False), Word(2, str(n), True)), self.text if translation else "")
+                for n in range(1, 5)]
+
+    def recitation(self, reciter_id, chapter):
+        from quran_video.api.models import VerseTiming
+        return "url", [VerseTiming(f"112:{n}", (n - 1) * 1000, n * 1000, ((1, (n - 1) * 1000, n * 1000 - 100),))
+                       for n in range(1, 5)]
+
+
+def fake_job(**kw):
+    from pathlib import Path
+    from quran_video.api.models import Reciter
+    from quran_video.core.export import ExportJob
+    return ExportJob(chapter=112, v_from=1, v_to=4, reciter=Reciter(7, "A", ""), fmt="9:16", out_dir=Path("."), **kw)
+
+
+def test_an_empty_translation_is_refused_before_export(app):
+    from quran_video.core.export import prepare, video_info
+    from quran_video.core.timing import DataError
+    with pytest.raises(DataError, match="not available"):
+        prepare(fake_job(), FakeClient(""), audio=False)
+    assert "not available" in str(video_info(fake_job(), FakeClient("")).problem)  # Export is disabled with why
+    assert video_info(fake_job(), FakeClient("Say, He is Allah")).problem is None
+    assert video_info(fake_job(translation="None"), FakeClient("")).problem is None  # no translation chosen
+
+
+def test_screens_are_every_page_in_order():
+    from quran_video.core.export import screens
+
+    class R:  # verse 0 has two pages (word 1, then word 2), verse 1 has one
+        def page_key(self, s):
+            return (s.verse, 1 if s.verse == 0 and s.active == 2 else 0)
+
+    clips = [Clip(0, 0, 3000, (Seg(1, 0, 1000), Seg(2, 1000, 2900))), Clip(1, 3000, 6000, (Seg(1, 3000, 5800),))]
+    shown = screens(Prepared(R(), clips, None, 0, 6000, (1080, 1920)), at=0.5)
+    assert [(s.verse, s.active) for s in shown] == [(0, 1), (0, 2), (1, 1)]
+
+
+def test_preview_steps_through_screens_and_stays_in_range(app):
+    from quran_video.core.export import preview_image
+    first, index, count = preview_image(fake_job(), FakeClient("Say"), screen=0)
+    assert (index, count) == (0, 4)  # one screen per verse here
+    last, index, _ = preview_image(fake_job(), FakeClient("Say"), screen=99)
+    assert index == 3 and last != first
+    assert preview_image(fake_job(), FakeClient("Say"), screen=-5)[1] == 0
+
+
+def test_a_solid_background_is_encoded_without_an_overlay(tmp_path):
+    from quran_video.core.ffmpeg import LeadAudio
+    ff = ffmpeg_exe()
+    audio = tmp_path / "a.wav"
+    subprocess.run([ff, "-y", "-loglevel", "error", "-f", "lavfi", "-i", "sine=d=3", str(audio)], check=True)
+    out = tmp_path / "o.mp4"
+    cmd = build_cmd(ff, 64, 64, 10, audio, 0, 2000, out, lead=LeadAudio(audio, 0, 1000))
+    assert "lavfi" not in cmd and "overlay" not in " ".join(cmd)  # the frames already carry the theme colour
+    proc = subprocess.run(cmd, input=bytes(64 * 64 * 4 * 30), capture_output=True)  # 3 s of frames
+    assert proc.returncode == 0, proc.stderr[-300:]
+    assert abs(media_seconds(out) - 3.0) < 0.2  # Basmala (1 s) then the verses (2 s)

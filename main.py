@@ -1,3 +1,5 @@
+"""Starts Quran Video Creator: the window, or with `cli` as the first argument, the command line."""
+
 import sys
 
 if __name__ == "__main__":

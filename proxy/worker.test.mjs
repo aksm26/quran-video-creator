@@ -11,7 +11,9 @@ beforeEach(() => {
   apiStatus = [200];
   globalThis.fetch = async (url, init = {}) => {
     calls.push({ url, init });
-    if (url.startsWith("https://oauth")) return new Response(JSON.stringify({ access_token: `t${calls.length}`, expires_in: 3600 }));
+    if (url.startsWith("https://oauth")) {
+      return new Response(JSON.stringify({ access_token: `t${calls.length}`, expires_in: 3600 }));
+    }
     return new Response("{}", { status: apiStatus.shift() ?? 200 });
   };
 });
@@ -29,7 +31,9 @@ test("forwards allowed paths with auth headers and reuses the token", async () =
 });
 
 test("rejects anything outside the allowlist and non-GET", async () => {
-  for (const p of ["/v4/foo", "/v4/chapters/../users", "/oauth2/token", "/v4/chapters/1/info"]) assert.equal((await get(p)).status, 404, p);
+  for (const p of ["/v4/foo", "/v4/chapters/../users", "/oauth2/token", "/v4/chapters/1/info"]) {
+    assert.equal((await get(p)).status, 404, p);
+  }
   assert.equal((await get("/v4/chapters", "POST")).status, 405);
   assert.equal(calls.length, 0);
 });
@@ -41,6 +45,7 @@ test("a 401 gets a fresh token and one retry", async () => {
 });
 
 test("rate limit is enforced when the binding exists", async () => {
-  const r = await worker.fetch(new Request("https://proxy/v4/chapters"), { ...env, LIMITER: { limit: async () => ({ success: false }) } });
+  const limiter = { limit: async () => ({ success: false }) };
+  const r = await worker.fetch(new Request("https://proxy/v4/chapters"), { ...env, LIMITER: limiter });
   assert.equal(r.status, 429);
 });

@@ -60,16 +60,17 @@ def audio_offset(timings: list[VerseTiming], env: list[float]) -> int | None:
     """Shift (ms) that puts the word starts on speech onsets in the audio envelope, or None when no clear one.
     Only call it once a mismatch is proven: on short surahs a stray onset can win."""
     starts = [s[1] for t in timings for s in t.segments if len(s) == 3] or [t.start for t in timings]
-    w = ENV_RATE // 5  # 200 ms either side of each start
-    cum = [0.0, *itertools.accumulate(env)]
+    half = ENV_RATE // 5  # frames in 200 ms: the window either side of each start
+    running = [0.0, *itertools.accumulate(env)]  # running[i] = sum of env[:i], so any window sum is one subtraction
 
     def score(ms: int) -> float:
-        tot = 0.0
-        for a in starts:
-            i = (a + ms) * ENV_RATE // 1000
-            if w <= i <= len(env) - w:
-                tot += cum[i + w] - 2 * cum[i] + cum[i - w]  # loudness just after minus just before
-        return tot
+        total = 0.0
+        for start in starts:
+            i = (start + ms) * ENV_RATE // 1000
+            if half <= i <= len(env) - half:
+                # loudness just after minus loudness just before: a word starts where the audio gets louder
+                total += running[i + half] - 2 * running[i] + running[i - half]
+        return total
 
     best = max(range(-15000, 15001, 50), key=score)
     fits = timings[-1].end + best <= len(env) * 1000 // ENV_RATE + 1000
@@ -77,8 +78,10 @@ def audio_offset(timings: list[VerseTiming], env: list[float]) -> int | None:
 
 
 def shifted(timings: list[VerseTiming], ms: int) -> list[VerseTiming]:
+    """The same timings, every time moved by `ms`."""
     return [VerseTiming(t.key, t.start + ms, t.end + ms,
-                        tuple((s[0], s[1] + ms, s[2] + ms) if len(s) == 3 else s for s in t.segments)) for t in timings]
+                        tuple((s[0], s[1] + ms, s[2] + ms) if len(s) == 3 else s for s in t.segments))
+            for t in timings]
 
 
 def cut_range(timings: list[VerseTiming]) -> tuple[int, int]:
@@ -105,11 +108,13 @@ def check_timings(timings: list[VerseTiming], reciter: str) -> None:
     """Reject ranges whose timing is unusable (e.g. a zero-length verse), so the user can pick another reciter."""
     for t in timings:
         if t.end <= t.start:
-            raise DataError("{reciter} has no timing for verse {verse}. Pick another reciter.", reciter=reciter, verse=t.key)
+            raise DataError("{reciter} has no timing for verse {verse}. Pick another reciter.",
+                            reciter=reciter, verse=t.key)
 
 
 def build_clips(timings: list[VerseTiming], word_counts: list[int], audio_start: int,
                 index_offset: int = 0) -> list[Clip]:
+    """Place each verse on the output timeline, where `audio_start` (ms in the chapter audio) becomes 0."""
     clips = []
     for i, (t, n) in enumerate(zip(timings, word_counts)):
         segs = tuple(Seg(s.pos, s.start - audio_start, s.end - audio_start) for s in clean_segments(t, n))

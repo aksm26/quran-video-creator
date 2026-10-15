@@ -17,12 +17,14 @@ DEFAULT_TEXT_WIDTH = 0.84
 
 SPLIT_VERSE, SPLIT_PARTS = "verse", "parts"
 HIGHLIGHT_NONE, HIGHLIGHT_WORD, HIGHLIGHT_KEEP = "none", "word", "keep"
-REVEAL_OFF, REVEAL_BUILD, REVEAL_SINGLE = "off", "build", "single"  # all words / words appear and stay / one word at a time
+# all words shown / words appear as recited and stay / only the word being recited
+REVEAL_OFF, REVEAL_BUILD, REVEAL_SINGLE = "off", "build", "single"
 
 _families: dict[str, str] = {}
 
 
 def load_font(path) -> str:
+    """Register a font file with Qt (once) and return its family name."""
     key = str(path)
     if key not in _families:
         fid = QFontDatabase.addApplicationFont(key)
@@ -48,6 +50,7 @@ class RenderOptions:
     text_width: float = DEFAULT_TEXT_WIDTH  # share of the frame width the Arabic may use
     translation_width: float = DEFAULT_TEXT_WIDTH  # the same for the translation
     name_scale: float = 1.0  # size of the surah name
+    fill: str | None = None  # colour painted under the text; None leaves it transparent, to lay over a picture
 
 
 @dataclass
@@ -85,7 +88,9 @@ def is_lit(highlight: str, state: State, pos: int) -> bool:
 
 
 def mix(a: QColor, b: QColor, t: float) -> QColor:
-    return QColor(*(round(x + (y - x) * t) for x, y in ((a.red(), b.red()), (a.green(), b.green()), (a.blue(), b.blue()))))
+    """The colour t of the way from a to b."""
+    pairs = ((a.red(), b.red()), (a.green(), b.green()), (a.blue(), b.blue()))
+    return QColor(*(round(x + (y - x) * t) for x, y in pairs))
 
 
 def has_rtl(text: str) -> bool:
@@ -96,6 +101,9 @@ TRANS_FLAGS = int(Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignTop | Qt
 
 
 class TextRenderer:
+    """Draws the text layer of a video frame: the verse (or part of it) on screen, its translation and the
+    surah name, on a transparent image that ffmpeg lays over the background."""
+
     def __init__(self, width: int, height: int, verses: list[Verse], font: FontSpec, opts: RenderOptions):
         self.w, self.h, self.opts = width, height, opts
         self.verses = verses
@@ -181,33 +189,36 @@ class TextRenderer:
         """Identifies what is on screen; fades happen when it changes."""
         return state.verse, self.page_index(state)
 
-    def render(self, state: State, alpha: float = 1.0, hl: float = 1.0, prev: int | None = None) -> QImage:
-        """hl is how far the newest highlight has faded in (0..1); prev is the word it is replacing."""
-        o, th = self.opts, self.opts.theme
+    def render(self, state: State, alpha: float = 1.0, highlight_progress: float = 1.0,
+               fading_word: int | None = None) -> QImage:
+        """highlight_progress is how far the newest highlight has eased in (0..1); fading_word is the word it
+        replaces, whose highlight eases out meanwhile. See export.Frame."""
+        opts, theme = self.opts, self.opts.theme
         img = QImage(self.w, self.h, QImage.Format.Format_RGBA8888)
-        img.fill(Qt.GlobalColor.transparent)
+        img.fill(QColor(opts.fill) if opts.fill else Qt.GlobalColor.transparent)
         p = QPainter(img)
         p.setRenderHint(QPainter.RenderHint.Antialiasing)
         p.setRenderHint(QPainter.RenderHint.TextAntialiasing)
-        if o.overlay > 0:
-            p.fillRect(img.rect(), QColor(0, 0, 0, int(255 * o.overlay)))
+        if opts.overlay > 0:
+            p.fillRect(img.rect(), QColor(0, 0, 0, int(255 * opts.overlay)))
         if self._header:
-            p.setFont(make_font(self._header[0], self.header_px))
-            p.setPen(QColor(th.text))
-            p.drawText(QRectF(0, self.h * 0.02, self.w, self.header_px * 1.3), Qt.AlignmentFlag.AlignCenter, self._header[1])
+            family, glyphs = self._header
+            p.setFont(make_font(family, self.header_px))
+            p.setPen(QColor(theme.text))
+            p.drawText(QRectF(0, self.h * 0.02, self.w, self.header_px * 1.3), Qt.AlignmentFlag.AlignCenter, glyphs)
         p.setOpacity(alpha)  # only the verse fades; header and overlay stay put
-        self._draw_verse(p, state, hl, prev)
+        self._draw_verse(p, state, highlight_progress, fading_word)
         p.end()
         return img
 
-    def _word_color(self, state: State, pos: int, hl: float, prev: int | None) -> QColor:
-        th = self.opts.theme
-        text, high = QColor(th.text), QColor(th.highlight)
+    def _word_color(self, state: State, pos: int, progress: float, fading_word: int | None) -> QColor:
+        theme = self.opts.theme
+        text, high = QColor(theme.text), QColor(theme.highlight)
         lit = is_lit(self.opts.highlight, state, pos)
-        if lit and state.active == pos and hl < 1:
-            return mix(text, high, hl)  # the newly lit word fades in
-        if not lit and prev == pos and hl < 1 and self.opts.highlight == HIGHLIGHT_WORD:
-            return mix(high, text, hl)  # and the word it replaces fades out
+        if lit and state.active == pos and progress < 1:
+            return mix(text, high, progress)  # the newly lit word fades in
+        if not lit and fading_word == pos and progress < 1 and self.opts.highlight == HIGHLIGHT_WORD:
+            return mix(high, text, progress)  # and the word it replaces fades out
         return high if lit else text
 
     def _single_word(self, state: State, shown: list[str], n: int) -> list[tuple[str, str]]:
@@ -232,7 +243,8 @@ class TextRenderer:
         pieces = self._single_word(state, shown, n)
         if not pieces:
             return 0.0
-        return QFontMetricsF(make_font(self.family, self._single_font_px(pieces))).lineSpacing() * 1.2  # full line, so the marks fit
+        font = make_font(self.family, self._single_font_px(pieces))
+        return QFontMetricsF(font).lineSpacing() * 1.2  # a full line, so the marks above and below fit
 
     def _draw_single(self, p: QPainter, state: State, shown: list[str], n: int, top: float, height: float,
                      colour: QColor) -> None:
@@ -253,41 +265,45 @@ class TextRenderer:
             p.drawText(QPointF(x, baseline), text)
             x -= space
 
-    def _draw_verse(self, p: QPainter, state: State, hl: float, prev: int | None) -> None:
-        th, words, n = self.opts.theme, self.words[state.verse], len(self.words[state.verse])
+    def _draw_verse(self, p: QPainter, state: State, progress: float, fading_word: int | None) -> None:
+        theme, words, n = self.opts.theme, self.words[state.verse], len(self.words[state.verse])
         shown = words + [self.markers[state.verse]]
         page = self.pages(state.verse)[self.page_index(state)]
         lay = page.lay
         reveal = self.opts.reveal
         arabic = self.opts.show_arabic
         single = arabic and reveal == REVEAL_SINGLE and state.active != ALL
-        arabic_h = (self._single_height(state, shown, n) if single else len(page.lines) * lay.line_h) if arabic else 0.0
-        gap = (self.gap * 1.5 if single else self.gap) if arabic else 0.0  # one big word needs more room below it
+        if not arabic:
+            arabic_h = gap = 0.0
+        elif single:
+            arabic_h, gap = self._single_height(state, shown, n), self.gap * 1.5  # one big word needs more room
+        else:
+            arabic_h, gap = len(page.lines) * lay.line_h, self.gap
         block_h = arabic_h + (gap + page.trans_h if page.translation else 0)
         top = self.top + (self.bottom - self.top - block_h) / 2  # Arabic and translation centred as one block
-        if not arabic:
-            pass
-        elif single:
+        if arabic and single:
             if state.active is not None:
-                self._draw_single(p, state, shown, n, top, arabic_h, self._word_color(state, state.active, hl, prev))
-        else:
-            for li, line in enumerate(page.lines):
-                line_w = sum(page.widths[g] for g in line) + lay.space * (len(line) - 1)
+                colour = self._word_color(state, state.active, progress, fading_word)
+                self._draw_single(p, state, shown, n, top, arabic_h, colour)
+        elif arabic:
+            for row, line in enumerate(page.lines):
+                line_w = sum(page.widths[word] for word in line) + lay.space * (len(line) - 1)
                 x = (self.w + line_w) / 2  # RTL: first word at the right edge
-                baseline = top + li * lay.line_h + (lay.line_h - lay.ascent) / 2 + lay.ascent * 0.8
-                for g in line:
-                    x -= page.widths[g]
-                    hidden = reveal == REVEAL_BUILD and state.reveal != ALL and g < n and g + 1 > state.reveal
-                    if g == n:  # verse-end sign appears once the last word has been recited
+                baseline = top + row * lay.line_h + (lay.line_h - lay.ascent) / 2 + lay.ascent * 0.8
+                for word in line:  # index into `shown`; word n is the verse-end sign
+                    x -= page.widths[word]
+                    hidden = reveal == REVEAL_BUILD and state.reveal != ALL and word < n and word + 1 > state.reveal
+                    if word == n:  # verse-end sign appears once the last word has been recited
                         hidden = reveal == REVEAL_BUILD and state.reveal != ALL and state.reveal < n
                     if not hidden:
-                        p.setFont(page.fonts[g])
-                        p.setPen(self._word_color(state, g + 1, hl, prev) if g < n else QColor(th.text))
-                        p.drawText(QPointF(x, baseline), shown[g])
+                        p.setFont(page.fonts[word])
+                        p.setPen(self._word_color(state, word + 1, progress, fading_word) if word < n
+                                 else QColor(theme.text))
+                        p.drawText(QPointF(x, baseline), shown[word])
                     x -= lay.space
         if page.translation:
             p.setFont(page.trans_font)
-            c = QColor(th.text)
+            c = QColor(theme.text)
             c.setAlphaF(0.85)
             p.setPen(c)
             p.setLayoutDirection(Qt.LayoutDirection.RightToLeft if has_rtl(page.translation)
