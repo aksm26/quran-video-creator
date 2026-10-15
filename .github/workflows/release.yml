@@ -20,6 +20,8 @@ jobs:
       - run: sudo apt-get update && sudo apt-get install -y libegl1 libgl1 libxkbcommon0 libfontconfig1
       - run: pip install -r requirements-dev.txt
       - run: python -m pytest -q tests
+      - if: startsWith(github.ref, 'refs/tags/')  # tag v1.2.3 must match quran_video.__version__
+        run: python -c "import os, quran_video as q; t = os.environ['GITHUB_REF_NAME']; assert t == 'v' + q.__version__, f'tag {t} != v{q.__version__}'"
 
   build:
     needs: test
