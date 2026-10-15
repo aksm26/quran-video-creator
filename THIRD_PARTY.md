@@ -30,6 +30,11 @@ The fonts are not covered by the GPL. Do not sell them or modify `QPCHafs.ttf`.
 | Translation list in `quran_video/config/translations.py` | Names and ids of Quran.com translations (no translation text) | Facts listed for lookup |
 | Quran text, translations, word timings, recitation audio | Downloaded at run time from the Quran Foundation Content API (through the app's proxy) and quranicaudio.com; never shipped with the app | [Quran Foundation Developer Terms](https://api-docs.quran.foundation/legal/developer-terms/). Videos must credit Quran Foundation (the app writes a `.credits.txt` per video); monetised social-media videos are allowed (QF confirmed, October 2026). Selling or redistributing the data itself needs a QF commercial licence |
 
+## Example videos (`docs/examples/`, `docs/screenshot.png`)
+
+Exported by this app. They contain Quran Foundation data (text, translations, recitation by Mishari Rashid
+al-`Afasy), shared as videos with the credit the Developer Terms ask for (shown under them in the README).
+
 ## Libraries bundled in the built app
 
 | Library | Licence | Notes |

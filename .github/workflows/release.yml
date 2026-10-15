@@ -76,6 +76,8 @@ jobs:
         with:
           files: dist/*
           body: |
-            Downloads below. Unsigned builds: see "Download" in the README for the one-time security prompt.
+            **Pick your file under Assets below:** Windows `.zip`, macOS (Apple Silicon) `.dmg`, Linux `.AppImage`.
+            Nothing else to install. The builds are not code-signed, so the first start asks once: see
+            [Get started in 3 steps](https://github.com/aksm26/quran-video-creator#get-started-in-3-steps).
             Every video comes with a `.credits.txt` file: put those credits in your caption (Quran Foundation terms).
             FFmpeg (GPL-3.0) is bundled; its source is at https://ffmpeg.org/releases/ (see THIRD_PARTY.md).

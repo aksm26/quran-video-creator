@@ -1,19 +1,54 @@
+<div align="center">
+
 # Quran Video Creator
 
-Makes Quran recitation videos (9:16, 16:9, 1:1, 4:5) with the Arabic synced word by word to the reciter, an
-optional translation under it, and your choice of font, theme and background. Free and open source (GPL-3.0).
+**Make Quran recitation videos for Reels, Shorts, TikTok and YouTube in a few clicks.**<br>
+The Arabic lights up word by word with the reciter, with a translation under it. Free, no account, no watermark.
 
-## Download
+<a href="https://github.com/aksm26/quran-video-creator/releases/latest/download/QuranVideoCreator-windows-x64.zip"><img alt="Download for Windows" src="https://img.shields.io/badge/Download-Windows-0078D4?style=for-the-badge&logo=windows&logoColor=white" height="44"></a>
+<a href="https://github.com/aksm26/quran-video-creator/releases/latest/download/QuranVideoCreator-macos-arm64.dmg"><img alt="Download for macOS" src="https://img.shields.io/badge/Download-macOS-111111?style=for-the-badge&logo=apple&logoColor=white" height="44"></a>
+<a href="https://github.com/aksm26/quran-video-creator/releases/latest/download/QuranVideoCreator-x86_64.AppImage"><img alt="Download for Linux" src="https://img.shields.io/badge/Download-Linux-E95420?style=for-the-badge&logo=linux&logoColor=white" height="44"></a>
 
-Get the latest version from the **Releases** page of this repository:
+<img src="docs/examples/al-ikhlas-9x16.gif" height="300" alt="Al-Ikhlas, 9:16 video with word-by-word highlight">&nbsp;
+<img src="docs/examples/al-kawthar-1x1-french.gif" height="300" alt="Al-Kawthar, square video with a French translation">
 
-| System | File | First start |
+</div>
+
+## Get started in 3 steps
+
+1. **Download** the file for your computer with a button above.
+2. **Open it** (first time only, because the app is free and not code-signed):
+   - **Windows:** unzip the file, then open `QuranVideoCreator.exe`. If a blue "Windows protected your PC" box
+     appears, click **More info**, then **Run anyway**.
+   - **macOS** (Apple Silicon: M1 or newer): open the `.dmg` and drag the app onto **Applications**. Open it once;
+     when macOS refuses, go to **System Settings** > **Privacy & Security**, scroll down and click **Open Anyway**.
+   - **Linux:** right-click the file > **Properties** > allow running as a program (or
+     `chmod +x QuranVideoCreator-x86_64.AppImage`), then double-click it.
+3. **Make a video:** pick a reciter, a surah and the verses, then click **Export**. The video lands in your
+   **Videos** folder, ready to upload.
+
+Nothing else to install. The app needs internet to download the Quran text, translations and recitations.
+All downloads: [Releases page](https://github.com/aksm26/quran-video-creator/releases/latest).
+
+## What it makes
+
+Every video below was exported by the app as is (click for the full video with sound).
+
+| [Al-Ikhlas, 9:16](docs/examples/al-ikhlas-9x16.mp4) | [Al-Fatihah, 16:9](docs/examples/al-fatihah-16x9.mp4) | [Al-Kawthar, 1:1, French](docs/examples/al-kawthar-1x1-french.mp4) |
 |---|---|---|
-| Windows 10/11 (64-bit) | `QuranVideoCreator-windows-x64.zip` | Unzip, open `QuranVideoCreator.exe`. If Windows SmartScreen warns, click **More info** > **Run anyway** (the app is not code-signed). |
-| macOS (Apple Silicon) | `QuranVideoCreator-macos-arm64.dmg` | Drag the app to Applications and open it. macOS blocks it the first time (the app is not notarized): go to **System Settings** > **Privacy & Security** and click **Open Anyway**. |
-| Linux (x86-64) | `QuranVideoCreator-x86_64.AppImage` | `chmod +x QuranVideoCreator-x86_64.AppImage` and run it. |
+| [<img src="docs/examples/al-ikhlas-9x16.gif" width="160" alt="Al-Ikhlas">](docs/examples/al-ikhlas-9x16.mp4) | [<img src="docs/examples/al-fatihah-16x9.gif" width="320" alt="Al-Fatihah">](docs/examples/al-fatihah-16x9.mp4) | [<img src="docs/examples/al-kawthar-1x1-french.gif" width="220" alt="Al-Kawthar">](docs/examples/al-kawthar-1x1-french.mp4) |
 
-The app needs internet: it downloads the text, translations and recitations from the Quran Foundation API.
+<sub>Recitation: Mishari Rashid al-`Afasy. Translations: English (Saheeh International), French (Muhammad Hamidullah).
+Quran data provided by Quran.Foundation (https://quran.foundation).</sub>
+
+- Formats: 9:16 (Reels, Shorts, TikTok), 16:9 (YouTube), 1:1 and 4:5 (feed posts), or all at once
+- 20 reciters and 144 translations in 80 languages, or Arabic only
+- Highlight word by word, or let the words appear as they are recited
+- Several Quran fonts, colour themes, your own image or video as background
+- Cuts long verses at the stop signs, so each screen stays readable
+- The interface speaks 18 languages, Arabic and Urdu right to left
+
+<img src="docs/screenshot.png" alt="The app window: settings on the left, live preview on the right" width="820">
 
 ## Credits and rights (please read)
 
