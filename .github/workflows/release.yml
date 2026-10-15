@@ -53,14 +53,24 @@ jobs:
         run: packaging/build_appimage.sh
       - if: runner.os == 'Windows'
         run: Compress-Archive -Path dist/QuranVideoCreator -DestinationPath dist/${{ matrix.asset }}
-      - if: runner.os == 'macOS'
-        run: hdiutil create -volname "Quran Video Creator" -srcfolder dist/QuranVideoCreator.app -ov -format UDZO dist/${{ matrix.asset }}
+      - if: runner.os == 'macOS'  # an Applications link in the image, so the app can be dragged onto it
+        run: |
+          mkdir dmg && cp -R dist/QuranVideoCreator.app dmg/ && ln -s /Applications dmg/Applications
+          make_dmg() { hdiutil create -volname "Quran Video Creator" -srcfolder dmg -ov -format UDZO dist/${{ matrix.asset }}; }
+          make_dmg || { sleep 10; make_dmg; }  # hdiutil sometimes fails with "Resource busy" on hosted runners
       - uses: actions/upload-artifact@v4
         with: {name: "${{ matrix.asset }}", path: "dist/${{ matrix.asset }}"}
-      - if: startsWith(github.ref, 'refs/tags/')
-        uses: softprops/action-gh-release@v2
+
+  release:  # one job creates the Release, so the three builds never race to create it
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/download-artifact@v4
+        with: {path: dist, merge-multiple: true}
+      - uses: softprops/action-gh-release@v2
         with:
-          files: dist/${{ matrix.asset }}
+          files: dist/*
           body: |
             Downloads below. Unsigned builds: see "Download" in the README for the one-time security prompt.
             Every video comes with a `.credits.txt` file: put those credits in your caption (Quran Foundation terms).
