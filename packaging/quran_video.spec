@@ -16,7 +16,7 @@ a = Analysis(
     pathex=[str(ROOT)],
     # assets/ sits next to quran_video/ in the bundle, so the Path(__file__).parents[2] / "assets" lookups work as is
     datas=[(str(ROOT / "assets"), "assets"), (str(ROOT / "LICENSE"), "."), (str(ROOT / "THIRD_PARTY.md"), "."),
-           (str(ROOT / "PRIVACY.md"), "."), (str(ROOT / "quran_video/config/LICENSE-CLDR.txt"), "quran_video/config")]
+           (str(ROOT / "PRIVACY.md"), "."), (str(ROOT / "TERMS.md"), "."),(str(ROOT / "quran_video/config/LICENSE-CLDR.txt"), "quran_video/config")]
           + collect_data_files("imageio_ffmpeg", subdir="binaries"),  # the ffmpeg executable
     excludes=["tkinter", "pytest"],
 )

@@ -1,29 +1,41 @@
-# Privacy policy and terms of use
+# Privacy policy
 
-## Privacy
+Effective 15 October 2026. Applies to the Quran Video Creator desktop app and its API proxy.
 
-Quran Video Creator collects no personal data. It has no account, no analytics and no tracking.
+## In short
 
-- The app downloads Quran text, translations, reciter lists and word timings from the Quran Foundation Content API
-  through a small proxy run by the app's maintainer on Cloudflare Workers (`proxy/` in the source). The proxy only
-  adds the app's API credentials and forwards the request; it stores and logs nothing. Recitation audio comes
-  straight from the Quran Foundation audio servers (quranicaudio.com). These requests carry your IP address and
-  the User-Agent `QuranVideoCreator/<version>`, like any web request. See the
-  [Quran Foundation privacy policy](https://api-docs.quran.foundation/legal/developer-privacy/) and the
+Quran Video Creator collects no personal data. It has no account, no analytics, no ads and no tracking.
+
+## What leaves your computer
+
+- **Quran data.** The app downloads Quran text, translations, reciter lists and word timings from the Quran
+  Foundation Content API, through a small proxy run by the app's maintainer on Cloudflare Workers (`proxy/` in the
+  source). The proxy adds the app's API credentials and forwards the request. It keeps no logs.
+  - It keeps a copy of Quran data answers for up to one day, so repeat requests are faster. These copies hold only
+    Quran data, never who asked for it.
+  - To stop abuse, it counts requests per IP address for one minute. The count is then discarded.
+- **Recitation audio** comes straight from the Quran Foundation audio servers (quranicaudio.com).
+- Like any web request, these requests carry your IP address and the User-Agent `QuranVideoCreator/<version>`.
+  Cloudflare and Quran Foundation handle them under their own policies:
+  [Quran Foundation privacy policy](https://api-docs.quran.foundation/legal/developer-privacy/),
   [Cloudflare privacy policy](https://www.cloudflare.com/privacypolicy/).
-- Downloads are cached on your computer for at most 7 days (in `.cache/quran-video` in your home folder) and are then
-  fetched again.
-- Your settings and custom themes are stored only on your computer.
-- Videos, background images and background videos you choose never leave your computer.
 
-## Terms of use
+## What stays on your computer
 
-- The app is free software under the GNU GPL v3 (see `LICENSE`). It comes with no warranty.
-- The Quran text is shown exactly as the API returns it. Do not edit it.
-- Every exported video comes with a `.credits.txt` file. Put those credits in your video's caption or description.
-  Quran Foundation confirmed (October 2026) that sharing these videos on social media, including monetised channels,
-  is permitted end-user use under section 2.2 of their
-  [Developer Terms](https://api-docs.quran.foundation/legal/developer-terms/), as long as Quran Foundation is
-  credited in the video, caption or credits.
-- Selling or redistributing the Quran data itself (text, translations, timings, audio files) needs a separate
-  commercial licence from Quran Foundation.
+- Downloads are cached for at most 7 days (in `.cache/quran-video` in your home folder), then deleted and fetched
+  again when needed.
+- Your settings and custom themes.
+- Your videos, and the background images and videos you choose. They are never uploaded.
+
+## Children
+
+The app collects no data from anyone, children included.
+
+## Changes
+
+Changes to this policy are published in this file, with a new effective date. The history of this file shows every
+change.
+
+## Contact
+
+Open an issue on the project's GitHub page: https://github.com/aksm26/quran-video-creator/issues

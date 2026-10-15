@@ -22,7 +22,7 @@ The app needs internet: it downloads the text, translations and recitations from
   monetised channels included, when Quran Foundation is credited (Developer Terms 2.2).
 - Selling or redistributing the Quran data itself needs a commercial licence from Quran Foundation.
 - The Quran text is shown exactly as the API returns it.
-- Privacy: the app collects nothing. See [PRIVACY.md](PRIVACY.md).
+- Privacy: the app collects nothing. See the [privacy policy](PRIVACY.md) and the [terms of service](TERMS.md).
 - Fonts, icons and FFmpeg keep their own licences: see [THIRD_PARTY.md](THIRD_PARTY.md).
 
 ## Run from source
