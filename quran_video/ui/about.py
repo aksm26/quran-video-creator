@@ -9,7 +9,7 @@ def about_html() -> str:
         f"<h3>Quran Video Creator {__version__}</h3>"
         f"<p>{tr('Recitation videos with the Arabic synced to the reciter.')}</p>"
         f"<p><b>{tr('Data and audio')}</b><br>{tr(ABOUT_DATA)}<br>"
-        '<a href="https://quran.com">Quran.com</a> · <a href="https://api-docs.quran.com">API</a> · '
+        '<a href="https://quran.com">Quran.com</a> · <a href="https://api-docs.quran.foundation">API</a> · '
         '<a href="https://quranicaudio.com">quranicaudio.com</a><br>'
         'Quran data provided by <a href="https://quran.foundation">Quran.Foundation</a>.</p>'
         f"<p><b>{tr('Fonts')}</b><br>"  # font and licence names are not translated

@@ -1,3 +1,4 @@
+import array
 import re
 import shutil
 import subprocess
@@ -31,6 +32,14 @@ def media_seconds(path: Path) -> float | None:
     out = subprocess.run([ffmpeg_exe(), "-hide_banner", "-i", str(path)], capture_output=True, text=True, creationflags=NO_WINDOW).stderr
     m = re.search(r"Duration: (\d+):(\d+):(\d+(?:\.\d+)?)", out)
     return int(m[1]) * 3600 + int(m[2]) * 60 + float(m[3]) if m else None
+
+
+def envelope(path: Path) -> list[float]:
+    """Loudness of an audio file: mean |sample| per 20 ms frame (timing.ENV_RATE frames per second)."""
+    raw = subprocess.run([ffmpeg_exe(), "-v", "error", "-i", str(path), "-ac", "1", "-ar", "8000", "-f", "s16le", "-"],
+                         capture_output=True, creationflags=NO_WINDOW).stdout
+    x = array.array("h", raw[:len(raw) // 2 * 2])
+    return [sum(map(abs, x[i:i + 160])) / 160 for i in range(0, len(x) - 159, 160)]
 
 
 def build_cmd(exe: str, w: int, h: int, fps: int, audio: Path, a_start_ms: int, dur_ms: int,

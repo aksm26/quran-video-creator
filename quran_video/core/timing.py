@@ -1,5 +1,6 @@
 """Pure timing math: segment cleaning, verse-range cut, offsets, and what to show at time t."""
 
+import itertools
 import logging
 from dataclasses import dataclass
 
@@ -50,6 +51,34 @@ def clean_segments(t: VerseTiming, n_words: int) -> list[Seg]:
     if not out:
         log.warning("%s: no usable word timing, highlighting whole verse", t.key)
     return out
+
+
+ENV_RATE = 50  # envelope frames per second (20 ms each), see ffmpeg.envelope
+
+
+def audio_offset(timings: list[VerseTiming], env: list[float]) -> int | None:
+    """Shift (ms) that puts the word starts on speech onsets in the audio envelope, or None when no clear one.
+    Only call it once a mismatch is proven: on short surahs a stray onset can win."""
+    starts = [s[1] for t in timings for s in t.segments if len(s) == 3] or [t.start for t in timings]
+    w = ENV_RATE // 5  # 200 ms either side of each start
+    cum = [0.0, *itertools.accumulate(env)]
+
+    def score(ms: int) -> float:
+        tot = 0.0
+        for a in starts:
+            i = (a + ms) * ENV_RATE // 1000
+            if w <= i <= len(env) - w:
+                tot += cum[i + w] - 2 * cum[i] + cum[i - w]  # loudness just after minus just before
+        return tot
+
+    best = max(range(-15000, 15001, 50), key=score)
+    fits = timings[-1].end + best <= len(env) * 1000 // ENV_RATE + 1000
+    return best if abs(best) >= 500 and fits and score(best) > 2 * max(score(0), 0) else None
+
+
+def shifted(timings: list[VerseTiming], ms: int) -> list[VerseTiming]:
+    return [VerseTiming(t.key, t.start + ms, t.end + ms,
+                        tuple((s[0], s[1] + ms, s[2] + ms) if len(s) == 3 else s for s in t.segments)) for t in timings]
 
 
 def cut_range(timings: list[VerseTiming]) -> tuple[int, int]:

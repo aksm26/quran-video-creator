@@ -1,0 +1,14 @@
+name = "qvc-proxy"
+main = "worker.js"
+compatibility_date = "2025-09-01"
+workers_dev = true
+
+[vars]
+QF_OAUTH = "https://oauth2.quran.foundation"
+QF_API = "https://apis.quran.foundation"
+
+# Per-IP limit, so nobody can burn the Quran Foundation quota through this proxy.
+[[ratelimits]]
+name = "LIMITER"
+namespace_id = "1001"
+simple = { limit = 120, period = 60 }

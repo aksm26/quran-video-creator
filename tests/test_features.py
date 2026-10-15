@@ -285,3 +285,40 @@ def test_translation_sits_well_below_the_arabic(app):
     v = verse(translation="Say, He is Allah, [who is] One.")
     r = renderer(RenderOptions(THEMES["Classic"], translation=True), v)
     assert r.gap >= 0.045 * r.short
+
+
+def _bursts(starts_ms, length_s):
+    """Envelope that is silent except for 300 ms of speech at each start (timing.ENV_RATE frames per second)."""
+    from quran_video.core.timing import ENV_RATE
+    env = [0.0] * (length_s * ENV_RATE)
+    for a in starts_ms:
+        i = a * ENV_RATE // 1000
+        env[i:i + 15] = [1000.0] * 15
+    return env
+
+
+def test_timings_for_a_recut_audio_file_are_shifted_back():
+    from quran_video.api.models import VerseTiming
+    from quran_video.core.timing import audio_offset, shifted
+    # Words every 1.3 s from 8 s, but the audio had its 7 s intro cut (QF: Dussary, surah 35)
+    starts = [8000 + 1300 * k + (k % 3) * 170 for k in range(120)]
+    t = [VerseTiming(f"35:{v + 1}", starts[v * 10], starts[v * 10 + 9] + 900,
+                     tuple((k + 1, starts[v * 10 + k], starts[v * 10 + k] + 900) for k in range(10))) for v in range(12)]
+    env = _bursts([a - 7000 for a in starts], 170)
+    ms = audio_offset(t, env)
+    assert abs(ms + 7000) <= 50
+    assert shifted(t, ms)[0].segments[0][1] == starts[0] + ms
+    assert audio_offset(t, [0.0] * len(env)) is None  # silence: no clear shift
+
+
+def test_timings_that_fit_the_audio_are_left_alone(monkeypatch, tmp_path):
+    from quran_video.api.models import VerseTiming
+    from quran_video.core import export
+    t = [VerseTiming("1:1", 0, 5000, ())]
+    monkeypatch.setattr(export, "media_seconds", lambda p: 5.2)
+    monkeypatch.setattr(export, "envelope", lambda p: pytest.fail("decoded although the timings fit"))
+    assert export.fit_to_audio(t, tmp_path / "a.mp3", "x") is t
+    monkeypatch.setattr(export, "media_seconds", lambda p: 3.0)  # timings overrun, and the audio has no clear shift
+    monkeypatch.setattr(export, "envelope", lambda p: [0.0] * 150)
+    with pytest.raises(export.DataError, match="doesn't match the audio"):
+        export.fit_to_audio(t, tmp_path / "a.mp3", "x")

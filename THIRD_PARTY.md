@@ -28,7 +28,7 @@ The fonts are not covered by the GPL. Do not sell them or modify `QPCHafs.ttf`.
 |---|---|---|
 | Language names in `quran_video/config/language_names.py` | [Unicode CLDR](https://cldr.unicode.org), generated with Babel | Unicode License v3 (`quran_video/config/LICENSE-CLDR.txt`) |
 | Translation list in `quran_video/config/translations.py` | Names and ids of Quran.com translations (no translation text) | Facts listed for lookup |
-| Quran text, translations, word timings, recitation audio | Downloaded at run time from the Quran.com / Quran Foundation API; never shipped with the app | [Quran Foundation Developer Terms](https://api-docs.quran.foundation/legal/developer-terms/). Videos must credit Quran Foundation, the reciter and the translation (the app writes a `.credits.txt` per video). Audio rights belong to each reciter and publisher |
+| Quran text, translations, word timings, recitation audio | Downloaded at run time from the Quran Foundation Content API (through the app's proxy) and quranicaudio.com; never shipped with the app | [Quran Foundation Developer Terms](https://api-docs.quran.foundation/legal/developer-terms/). Videos must credit Quran Foundation (the app writes a `.credits.txt` per video); monetised social-media videos are allowed (QF confirmed, October 2026). Selling or redistributing the data itself needs a QF commercial licence |
 
 ## Libraries bundled in the built app
 

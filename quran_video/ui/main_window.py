@@ -641,8 +641,9 @@ class MainWindow(QMainWindow):
 
     @staticmethod
     def _reciter_label(r) -> str:
-        extra = f", {tr(r.note)}" if r.note else ""
-        return f"{i18n.reciter_name(r.id, r.name)} ({tr(r.style)}{extra})"
+        extra = ", ".join(tr(x) for x in (r.style, r.note) if x)
+        name = i18n.reciter_name(r.id, r.name)
+        return f"{name} ({extra})" if extra else name
 
     def _fill_translations(self, select: str | None = None) -> None:
         """Every translation Quran.com has, "None" first and then in the app language's alphabetical order."""

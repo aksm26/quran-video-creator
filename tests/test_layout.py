@@ -75,6 +75,7 @@ def test_a_huge_surah_name_shrinks_a_long_verse_instead_of_moving_it(app):
             assert block <= r.max_h + 1 and (h - block) / 2 >= r.header_h - 1, fmt  # never reaches the name
 
 
+@pytest.mark.slow_network
 def test_wider_text_uses_fewer_lines(app):
     c = QuranClient()
     font = FONTS["QPC Hafs"]
@@ -95,6 +96,7 @@ def test_quality_scaling_keeps_even_sizes():
             assert sw % 2 == 0 and sh % 2 == 0 and abs(sw / w - q.scale) < 0.01
 
 
+@pytest.mark.slow_network
 def test_reveal_style_shows_nothing_before_the_first_word(app):
     from PySide6.QtGui import QColor, QImage
     c = QuranClient()

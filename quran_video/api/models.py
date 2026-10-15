@@ -19,7 +19,8 @@ class Reciter:
 
     @property
     def label(self) -> str:
-        return f"{self.name} ({self.style}{', ' + self.note if self.note else ''})"
+        extra = ", ".join(x for x in (self.style, self.note) if x)
+        return f"{self.name} ({extra})" if extra else self.name
 
 
 @dataclass(frozen=True)

@@ -1,5 +1,6 @@
 """One export job: fetch data, cut the range, stream text frames into ffmpeg. No widgets."""
 
+import logging
 import math
 import re
 import subprocess
@@ -12,15 +13,18 @@ from PySide6.QtCore import Qt
 from PySide6.QtGui import QColor, QImage, QPainter
 
 from ..api.client import ApiError, QuranClient
-from ..api.models import Reciter, Verse
+from ..api.models import Reciter, Verse, VerseTiming
 from ..config.fonts import DEFAULT_FONT, FONTS
 from ..config.presets import FORMATS
 from ..config.quality import DEFAULT_QUALITY, QUALITIES, scaled_size
 from ..config.themes import DEFAULT_THEME, THEMES
 from ..config.translations import DEFAULT_TRANSLATION, TRANSLATIONS
-from .ffmpeg import IMAGE_EXTS, NO_WINDOW, FFmpegError, build_cmd, ffmpeg_exe, is_video, media_seconds
+from .ffmpeg import IMAGE_EXTS, NO_WINDOW, FFmpegError, build_cmd, envelope, ffmpeg_exe, is_video, media_seconds
 from .render import DEFAULT_STOPS, DEFAULT_TEXT_WIDTH, HIGHLIGHT_WORD, REVEAL_OFF, SPLIT_PARTS, RenderOptions, TextRenderer
-from .timing import DataError, State, basmala_available, build_clips, check_timings, cut_range, state_at
+from .timing import (DataError, State, audio_offset, basmala_available, build_clips, check_timings, cut_range,
+                     shifted, state_at)
+
+log = logging.getLogger(__name__)
 
 
 FADE_OUT_MS = 250  # every verse/part fades out, then the next fades in (always on)
@@ -81,6 +85,19 @@ class Prepared:
     lead_audio: tuple | None = None  # (audio file, start ms, length ms) of that Basmala
 
 
+def fit_to_audio(timings: list[VerseTiming], audio_file: Path, reciter: str) -> list[VerseTiming]:
+    """QF sometimes pairs timings with a re-cut audio file (Dussary, surah 35: intro cut, words 7 s late).
+    Timings that run past the end of the audio prove it; then find the shift from the audio itself."""
+    secs = media_seconds(audio_file)
+    if secs is None or timings[-1].end <= secs * 1000 + 1000:
+        return timings
+    ms = audio_offset(timings, envelope(audio_file))
+    if ms is None:
+        raise DataError("{reciter}'s timing doesn't match the audio for this surah. Pick another reciter.", reciter=reciter)
+    log.info("%s: timings shifted %+d ms to match the audio", reciter, ms)
+    return shifted(timings, ms)
+
+
 def prepare(job: ExportJob, client: QuranClient, audio: bool = True) -> Prepared:
     """Fetch and cut everything the frame loop needs. Requires a QGuiApplication (fonts)."""
     font, theme = FONTS[job.font], THEMES[job.theme]
@@ -89,11 +106,13 @@ def prepare(job: ExportJob, client: QuranClient, audio: bool = True) -> Prepared
         raise DataError("Nothing to show: turn on the Arabic text or choose a translation.")
     verses = client.verses(job.chapter, font.text_field, tr_id)[job.v_from - 1:job.v_to]
     url, timings = client.recitation(job.reciter.id, job.chapter)
+    audio_file = client.audio(job.reciter.id, job.chapter, url) if audio else None
+    if audio_file:
+        timings = fit_to_audio(timings, audio_file, job.reciter.name)
     timings = timings[job.v_from - 1:job.v_to]
     if [t.key for t in timings] != [v.key for v in verses]:
         raise ValueError("Verse timings do not line up with verse text")
     check_timings(timings, job.reciter.name)
-    audio_file = client.audio(job.reciter.id, job.chapter, url) if audio else None
     a_start, a_end = cut_range(timings)
     counts = [len(v.text_words) for v in verses]
     lead_ms, lead_audio = 0, None
@@ -102,12 +121,13 @@ def prepare(job: ExportJob, client: QuranClient, audio: bool = True) -> Prepared
             raise DataError("Needs verse 1 of a surah other than Al-Fatihah and At-Tawbah.")
         # The Basmala is verse 1:1, taken from the same reciter's Al-Fatihah recording: same voice, timed words.
         b_url, b_timings = client.recitation(job.reciter.id, 1)
-        b = b_timings[0]
+        b_file = client.audio(job.reciter.id, 1, b_url) if audio else None
+        b = (fit_to_audio(b_timings, b_file, job.reciter.name) if b_file else b_timings)[0]
         check_timings([b], job.reciter.name)
         first = client.verses(1, font.text_field, tr_id)[0]  # text exactly as returned, without its verse sign
         b_words = tuple(w for w in first.words if not w.is_end)
         lead_ms = b.end - b.start
-        lead_audio = (client.audio(job.reciter.id, 1, b_url) if audio else None, b.start, lead_ms)
+        lead_audio = (b_file, b.start, lead_ms)
         clips = build_clips([b], [len(b_words)], b.start) + build_clips(timings, counts, a_start - lead_ms, 1)
         verses = [Verse("basmala", 0, b_words, first.translation), *verses]
     else:

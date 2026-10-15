@@ -1,4 +1,4 @@
-"""Quran.com v4 client with an on-disk cache. Nothing is kept longer than a week (Quran Foundation Developer Terms)."""
+"""Quran Foundation Content API (v4) client, through the project proxy, with an on-disk cache. Nothing is kept longer than a week (Quran Foundation Developer Terms)."""
 
 import hashlib
 import json
@@ -15,7 +15,9 @@ from urllib3.util.retry import Retry
 from .. import __version__
 from .models import Chapter, Reciter, Verse, VerseTiming, Word
 
-BASE = "https://api.quran.com/api"
+# The proxy (proxy/worker.js) holds the Quran Foundation client secret; the app never does (QF requirement).
+# QVC_API_BASE points a fork or self-hoster at their own proxy.
+BASE = os.environ.get("QVC_API_BASE", "https://qvc-proxy.quranvideocreator.workers.dev").rstrip("/")
 MAX_AGE = 7 * 86400  # QF terms: no API content or audio may be cached longer than one week
 DEFAULT_CACHE = Path(os.environ.get("XDG_CACHE_HOME", Path.home() / ".cache")) / "quran-video"
 
@@ -24,12 +26,20 @@ DEFAULT_CACHE = Path(os.environ.get("XDG_CACHE_HOME", Path.home() / ".cache")) /
 RECITER_NOTES = {
     173: "alternate copy",
 }
+# QF serves Saad al-Ghamdi's word timings for Abdullah Ali Jabir on every surah (checked 2026-10-14; user chose to hide him).
+HIDDEN_RECITERS = {158}
 
 
 def clean_translation(html: str) -> str:
     """Translations carry <sup foot_note=..>n</sup> markers; drop them (and any other tags). Quran text is never touched."""
     text = re.sub(r"<sup[^>]*>.*?</sup>", "", html, flags=re.S)
     return re.sub(r"\s+", " ", re.sub(r"<[^>]+>", "", text)).strip()
+
+
+def _style(r: dict) -> str:
+    """Recitation style ("Murattal"...), sent as a name or as {"name": ...}; empty when the API leaves it out."""
+    st = r.get("style") or ""
+    return st.get("name", "") if isinstance(st, dict) else st
 
 
 def _fresh(f: Path) -> bool:
@@ -53,6 +63,8 @@ class QuranClient:
 
     def _json(self, path: str, **params) -> dict:
         """Cached GET. A copy older than MAX_AGE is fetched again, and never used once expired."""
+        if not self.base:
+            raise ApiError("No API proxy configured: set QVC_API_BASE (see README, 'Run your own API proxy')")
         url = requests.Request("GET", f"{self.base}/{path}", params=params).prepare().url
         f = self.cache / "api" / (hashlib.sha1(url.encode()).hexdigest() + ".json")
         def fresh() -> bool:
@@ -82,13 +94,9 @@ class QuranClient:
                 for c in self._json("v4/chapters", language="en")["chapters"]]
 
     def reciters(self) -> list[Reciter]:
-        # /v4/resources/chapter_reciters returned 503 when verified (2026-10); the qdc list uses the same ids.
-        try:
-            rs = self._json("qdc/audio/reciters", locale="en")["reciters"]
-            return [Reciter(r["id"], r["name"], r["style"]["name"], RECITER_NOTES.get(r["id"], "")) for r in rs]
-        except ApiError:
-            rs = self._json("v4/resources/chapter_reciters", language="en")["reciters"]
-            return [Reciter(r["id"], r["name"], (r.get("style") or {}).get("name", ""), RECITER_NOTES.get(r["id"], "")) for r in rs]
+        rs = self._json("v4/resources/chapter_reciters", language="en")["reciters"]
+        return [Reciter(r["id"], r["name"], _style(r), RECITER_NOTES.get(r["id"], "")) for r in rs
+                if r["id"] not in HIDDEN_RECITERS]
 
     def verses(self, chapter: int, text_field: str = "text_uthmani", translation: int | None = None) -> list[Verse]:
         out, page = [], 1

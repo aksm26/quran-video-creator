@@ -6,3 +6,5 @@ build/
 dist/
 out/
 *.part
+proxy/.wrangler/
+.dev.vars
