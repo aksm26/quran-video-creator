@@ -101,7 +101,7 @@ def main(argv=None) -> int:
             else:
                 # the spaces wipe out the longer download line
                 path = export(job, client, progress=lambda f: print(f"\r{f:6.1%}" + " " * 30, end="", flush=True),
-                              download=show_download)
+                              download=show_download, warn=lambda e: print(f"\nWarning: {e}", file=sys.stderr))
                 print(f"\n{path}\nCredits for the caption (required by the Quran Foundation terms): "
                       f"{credits_path(path)}")
     except (DataError, ApiError, FFmpegError) as e:

@@ -96,7 +96,7 @@
     "FFmpeg, bundled through imageio-ffmpeg.": "FFmpeg, imageio-ffmpeg ile birlikte gelir.",
     "Credits for the caption were saved next to each video and copied to the clipboard.": "Açıklama için künye bilgileri her videonun yanına kaydedildi ve panoya kopyalandı.",
     "{reciter} has no timing for verse {verse}. Pick another reciter.": "{reciter} için {verse}. ayetin zamanlaması yok. Başka bir okuyucu seçin.",
-    "{reciter}'s timing doesn't match the audio for this surah. Pick another reciter.": "{reciter} zamanlaması bu surede sesle uyuşmuyor. Başka bir okuyucu seçin.",
+    "{reciter}'s word timing doesn't match the audio for this surah, so the highlighted words may be out of step. Pick another reciter for exact highlighting.": "{reciter} kelime zamanlaması bu surede sesle uyuşmuyor, bu yüzden vurgulanan kelimeler sesle kayabilir. Tam vurgulama için başka bir okuyucu seçin.",
     "Nothing to show: turn on the Arabic text or choose a translation.": "Gösterilecek bir şey yok: Arapça metni açın veya bir meal seçin.",
     "Classic": "Klasik",
     "Classic Yellow": "Klasik sarı",
@@ -113,6 +113,8 @@
     "This translation is not available for these verses. Choose another one.": "Bu meal bu ayetler için mevcut değil. Başka bir meal seçin.",
     "Downloading the recitation: {done} of {total}": "Kıraat indiriliyor: {done} / {total}",
     "Previous screen": "Önceki ekran",
-    "Next screen": "Sonraki ekran"
+    "Next screen": "Sonraki ekran",
+    "Update available: {version}": "Güncelleme mevcut: {version}",
+    "Check for updates when the app starts": "Uygulama açılırken güncellemeleri denetle"
   }
 }

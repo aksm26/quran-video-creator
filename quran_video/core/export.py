@@ -90,6 +90,7 @@ class Prepared:
     size: tuple[int, int]  # output width and height, after the quality's scale
     lead_ms: int = 0  # length of the Basmala placed before verse 1 (0 = none)
     lead_audio: LeadAudio | None = None  # where that Basmala comes from
+    warning: DataError | None = None  # a problem the video was still made with, worth telling the user
 
 
 class Frame(NamedTuple):
@@ -100,17 +101,18 @@ class Frame(NamedTuple):
     fading_word: int | None  # the word whose highlight is easing out at the same time
 
 
-def fit_to_audio(timings: list[VerseTiming], audio_file: Path, reciter: str) -> list[VerseTiming]:
+def fit_to_audio(timings: list[VerseTiming], audio_file: Path) -> list[VerseTiming] | None:
     """QF sometimes pairs timings with a re-cut audio file (Dussary, surah 35: intro cut, words 7 s late).
-    Timings that run past the end of the audio prove it; then find the shift from the audio itself."""
+    Timings that run past the end of the audio prove it; then find the shift from the audio itself.
+    None when they run past it and no clear shift is found: the words will be out of step with the audio."""
     secs = media_seconds(audio_file)
     if secs is None or timings[-1].end <= secs * 1000 + 1000:
         return timings
     ms = audio_offset(timings, envelope(audio_file))
     if ms is None:
-        raise DataError("{reciter}'s timing doesn't match the audio for this surah. Pick another reciter.",
-                        reciter=reciter)
-    log.info("%s: timings shifted %+d ms to match the audio", reciter, ms)
+        log.warning("timings run past the audio and no clear shift was found, used as they are")
+        return None
+    log.info("timings shifted %+d ms to match the audio", ms)
     return shifted(timings, ms)
 
 
@@ -133,8 +135,10 @@ def prepare(job: ExportJob, client: QuranClient, audio: bool = True,
     check_translation(verses, job.translation)
     url, timings = client.recitation(job.reciter.id, job.chapter)
     audio_file = client.audio(job.reciter.id, job.chapter, url, on_download) if audio else None
+    off = False  # the timings don't match the audio, so highlighted words will be out of step
     if audio_file:
-        timings = fit_to_audio(timings, audio_file, job.reciter.name)
+        fitted = fit_to_audio(timings, audio_file)
+        off, timings = fitted is None, fitted or timings
     timings = timings[job.v_from - 1:job.v_to]
     if [t.key for t in timings] != [v.key for v in verses]:
         raise ValueError("Verse timings do not line up with verse text")
@@ -149,7 +153,8 @@ def prepare(job: ExportJob, client: QuranClient, audio: bool = True,
         basmala_url, fatihah_timings = client.recitation(job.reciter.id, 1)
         basmala_file = client.audio(job.reciter.id, 1, basmala_url, on_download) if audio else None
         if basmala_file:
-            fatihah_timings = fit_to_audio(fatihah_timings, basmala_file, job.reciter.name)
+            fitted = fit_to_audio(fatihah_timings, basmala_file)
+            off, fatihah_timings = off or fitted is None, fitted or fatihah_timings
         basmala = fatihah_timings[0]
         check_timings([basmala], job.reciter.name)
         first = client.verses(1, font.text_field, translation_id)[0]  # text exactly as returned
@@ -169,7 +174,12 @@ def prepare(job: ExportJob, client: QuranClient, audio: bool = True,
                          translation_width=job.translation_width, name_scale=job.name_scale,
                          fill=None if job.background else theme.bg)
     renderer = TextRenderer(w, h, verses, font, opts)
-    return Prepared(renderer, clips, audio_file, start_ms, end_ms, (w, h), lead_ms, lead_audio)
+    warning = None
+    if off and job.highlight != HIGHLIGHT_NONE:
+        warning = DataError("{reciter}'s word timing doesn't match the audio for this surah, so the highlighted "
+                            "words may be out of step. Pick another reciter for exact highlighting.",
+                            reciter=job.reciter.name)
+    return Prepared(renderer, clips, audio_file, start_ms, end_ms, (w, h), lead_ms, lead_audio, warning)
 
 
 def ease(t: float) -> float:
@@ -250,15 +260,19 @@ def _feed(stdin, frames: queue.Queue, failed: list[BaseException]) -> None:
 
 def export(job: ExportJob, client: QuranClient, progress: Callable[[float], None] = lambda f: None,
            cancelled: Callable[[], bool] = lambda: False,
-           download: Callable[[int, int], None] = lambda done, total: None) -> Path:
+           download: Callable[[int, int], None] = lambda done, total: None,
+           warn: Callable[[DataError], None] = lambda e: None) -> Path:
     """Write the video (and its .credits.txt) and return its path. `progress` gets 0..1, `download` follows the
-    recitation download (bytes done, total), and `cancelled` can stop either."""
+    recitation download (bytes done, total), `cancelled` can stop either, and `warn` hears of a problem the video
+    is still made with."""
     def downloading(done: int, total: int) -> None:
         if cancelled():
             raise Cancelled()
         download(done, total)
 
     prep = prepare(job, client, on_download=downloading)
+    if prep.warning:
+        warn(prep.warning)
     w, h = prep.size
     q = QUALITIES[job.quality]
     job.out_dir.mkdir(parents=True, exist_ok=True)

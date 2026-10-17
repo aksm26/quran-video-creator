@@ -96,7 +96,7 @@
     "FFmpeg, bundled through imageio-ffmpeg.": "FFmpeg, imageio-ffmpeg के साथ शामिल।",
     "Credits for the caption were saved next to each video and copied to the clipboard.": "कैप्शन के लिए श्रेय हर वीडियो के साथ सहेजा गया और क्लिपबोर्ड पर कॉपी किया गया।",
     "{reciter} has no timing for verse {verse}. Pick another reciter.": "{reciter} के पास आयत {verse} का समय नहीं है। कोई और क़ारी चुनें।",
-    "{reciter}'s timing doesn't match the audio for this surah. Pick another reciter.": "इस सूरह में {reciter} का समय ऑडियो से मेल नहीं खाता। कोई और क़ारी चुनें।",
+    "{reciter}'s word timing doesn't match the audio for this surah, so the highlighted words may be out of step. Pick another reciter for exact highlighting.": "इस सूरह में {reciter} के शब्दों का समय ऑडियो से मेल नहीं खाता, इसलिए हाइलाइट किए गए शब्द ऑडियो से आगे-पीछे हो सकते हैं। सटीक हाइलाइट के लिए कोई दूसरा क़ारी चुनें।",
     "Nothing to show: turn on the Arabic text or choose a translation.": "दिखाने को कुछ नहीं: अरबी पाठ चालू करें या अनुवाद चुनें।",
     "Classic": "क्लासिक",
     "Classic Yellow": "क्लासिक पीला",
@@ -113,7 +113,9 @@
     "This translation is not available for these verses. Choose another one.": "यह अनुवाद इन आयतों के लिए उपलब्ध नहीं है। कोई और अनुवाद चुनें।",
     "Downloading the recitation: {done} of {total}": "तिलावत डाउनलोड हो रही है: {total} में से {done}",
     "Previous screen": "पिछली स्क्रीन",
-    "Next screen": "अगली स्क्रीन"
+    "Next screen": "अगली स्क्रीन",
+    "Update available: {version}": "अपडेट उपलब्ध: {version}",
+    "Check for updates when the app starts": "ऐप शुरू होने पर अपडेट जाँचें"
   },
   "reciters": {
     "97": "यासिर अद-दोसरी",

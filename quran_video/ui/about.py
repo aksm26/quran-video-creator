@@ -1,6 +1,7 @@
 """The About dialog: version, where the data comes from, and the licences."""
 
-from PySide6.QtWidgets import QDialog, QDialogButtonBox, QLabel, QVBoxLayout
+from PySide6.QtCore import QSettings
+from PySide6.QtWidgets import QCheckBox, QDialog, QDialogButtonBox, QLabel, QVBoxLayout
 
 from .. import __version__
 from ..i18n import ABOUT_DATA, tr
@@ -26,7 +27,7 @@ def about_html() -> str:
 
 
 class AboutDialog(QDialog):
-    def __init__(self, parent=None):
+    def __init__(self, settings: QSettings, parent=None):
         super().__init__(parent)
         self.setWindowTitle(tr("About"))
         self.setMinimumWidth(520)
@@ -36,6 +37,10 @@ class AboutDialog(QDialog):
         label.setWordWrap(True)
         label.setOpenExternalLinks(True)
         lay.addWidget(label)
+        check = QCheckBox(tr("Check for updates when the app starts"))
+        check.setChecked(settings.value("check_updates", True, type=bool))
+        check.toggled.connect(lambda on: settings.setValue("check_updates", on))
+        lay.addWidget(check)
         buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Close)
         buttons.button(QDialogButtonBox.StandardButton.Close).setText(tr("Close"))
         buttons.rejected.connect(self.reject)

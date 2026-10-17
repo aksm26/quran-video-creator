@@ -96,7 +96,7 @@
     "FFmpeg, bundled through imageio-ffmpeg.": "FFmpeg, imageio-ffmpeg-এর সাথে অন্তর্ভুক্ত।",
     "Credits for the caption were saved next to each video and copied to the clipboard.": "ক্যাপশনের জন্য কৃতজ্ঞতা প্রতিটি ভিডিওর পাশে সংরক্ষিত ও ক্লিপবোর্ডে কপি করা হয়েছে।",
     "{reciter} has no timing for verse {verse}. Pick another reciter.": "{reciter}-এর কাছে আয়াত {verse}-এর সময় নেই। অন্য কারী বেছে নিন।",
-    "{reciter}'s timing doesn't match the audio for this surah. Pick another reciter.": "এই সূরায় {reciter}-এর সময় অডিওর সাথে মেলে না। অন্য কারী বেছে নিন।",
+    "{reciter}'s word timing doesn't match the audio for this surah, so the highlighted words may be out of step. Pick another reciter for exact highlighting.": "এই সূরায় {reciter}-এর শব্দের সময় অডিওর সাথে মেলে না, তাই হাইলাইট করা শব্দ অডিওর সাথে নাও মিলতে পারে। সঠিক হাইলাইটের জন্য অন্য একজন ক্বারী বেছে নিন।",
     "Nothing to show: turn on the Arabic text or choose a translation.": "দেখানোর কিছু নেই: আরবি লেখা চালু করুন বা অনুবাদ বেছে নিন।",
     "Classic": "ক্লাসিক",
     "Classic Yellow": "ক্লাসিক হলুদ",
@@ -113,7 +113,9 @@
     "This translation is not available for these verses. Choose another one.": "এই অনুবাদ এই আয়াতগুলোর জন্য পাওয়া যাচ্ছে না। অন্য একটি অনুবাদ বেছে নিন।",
     "Downloading the recitation: {done} of {total}": "তিলাওয়াত ডাউনলোড হচ্ছে: {total}-এর মধ্যে {done}",
     "Previous screen": "আগের স্ক্রিন",
-    "Next screen": "পরের স্ক্রিন"
+    "Next screen": "পরের স্ক্রিন",
+    "Update available: {version}": "আপডেট উপলব্ধ: {version}",
+    "Check for updates when the app starts": "অ্যাপ চালু হলে আপডেট আছে কিনা দেখুন"
   },
   "reciters": {
     "97": "ইয়াসির আদ-দোসারি",

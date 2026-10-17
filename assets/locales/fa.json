@@ -96,7 +96,7 @@
     "FFmpeg, bundled through imageio-ffmpeg.": "FFmpeg، همراه با imageio-ffmpeg.",
     "Credits for the caption were saved next to each video and copied to the clipboard.": "منابع برای توضیح ویدیو کنار هر ویدیو ذخیره و در کلیپ‌بورد کپی شد.",
     "{reciter} has no timing for verse {verse}. Pick another reciter.": "{reciter} برای آیهٔ {verse} زمان‌بندی ندارد. قاری دیگری انتخاب کنید.",
-    "{reciter}'s timing doesn't match the audio for this surah. Pick another reciter.": "زمان‌بندی {reciter} در این سوره با صدا هماهنگ نیست. قاری دیگری انتخاب کنید.",
+    "{reciter}'s word timing doesn't match the audio for this surah, so the highlighted words may be out of step. Pick another reciter for exact highlighting.": "زمان‌بندی کلمات {reciter} در این سوره با صدا هماهنگ نیست، پس ممکن است برجسته‌سازی کلمات با صدا همگام نباشد. برای برجسته‌سازی دقیق، قاری دیگری انتخاب کنید.",
     "Nothing to show: turn on the Arabic text or choose a translation.": "چیزی برای نمایش نیست: متن عربی را روشن کنید یا ترجمه‌ای انتخاب کنید.",
     "Classic": "کلاسیک",
     "Classic Yellow": "کلاسیک زرد",
@@ -113,7 +113,9 @@
     "This translation is not available for these verses. Choose another one.": "این ترجمه برای این آیه‌ها در دسترس نیست. ترجمهٔ دیگری انتخاب کنید.",
     "Downloading the recitation: {done} of {total}": "در حال دانلود تلاوت: {done} از {total}",
     "Previous screen": "صفحهٔ قبلی",
-    "Next screen": "صفحهٔ بعدی"
+    "Next screen": "صفحهٔ بعدی",
+    "Update available: {version}": "به‌روزرسانی موجود است: {version}",
+    "Check for updates when the app starts": "بررسی به‌روزرسانی هنگام شروع برنامه"
   },
   "reciters": {
     "97": "یاسر الدوسری",

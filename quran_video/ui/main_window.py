@@ -1,6 +1,7 @@
 """Main window. All blocking work runs in Task (QThreadPool); this file only builds widgets and wires them up."""
 
 import json
+import sys
 import threading
 import time
 import unicodedata
@@ -16,6 +17,7 @@ from PySide6.QtWidgets import (QApplication, QButtonGroup, QCheckBox, QComboBox,
 
 from .. import __version__, i18n
 from ..api.client import DEFAULT_RECITER, ApiError, QuranClient
+from ..api.updates import newer_release
 from ..config.fonts import DEFAULT_FONT, FONTS, SURAH_NAME_FONT, SYMBOL_FONT, TRANSLATION_FONT
 from ..config.language_names import language_name
 from ..config.presets import DEFAULT_FORMAT, FORMAT_NOTES, FORMATS
@@ -133,6 +135,23 @@ class MainWindow(QMainWindow):
         QGuiApplication.styleHints().colorSchemeChanged.connect(lambda *_: self._apply_ui_theme())
         QApplication.instance().installEventFilter(self)  # to keep tooltips brief
         self._start(lambda: (self.client.chapters(), self.client.reciters()), self._loaded, tr("Loading…"))
+        # only the downloaded app: someone running the source updates it with git
+        if getattr(sys, "frozen", False) and self.settings.value("check_updates", True, type=bool):
+            self._start(self._newer_release, self._got_release)
+
+    def _newer_release(self):
+        try:
+            return newer_release(self.client.session)
+        except Exception:  # offline, rate-limited, GitHub changed: the app works the same without it
+            return None
+
+    def _got_release(self, found) -> None:
+        if not found:
+            return
+        version, url = found
+        self._reg(lambda: self.update_btn.setText(tr("Update available: {version}").format(version=version)))
+        self.update_btn.clicked.connect(lambda: QDesktopServices.openUrl(QUrl(url)))
+        self.update_btn.show()
 
     # ---------------------------------------------------------------- translated building blocks
     def _reg(self, fn) -> None:
@@ -219,9 +238,13 @@ class MainWindow(QMainWindow):
         self.ui_theme = self._combo([("System", "System"), ("Light", "Light"), ("Dark", "Dark")])
         self.ui_theme.currentIndexChanged.connect(self._apply_ui_theme)
         about = QPushButton()
-        about.clicked.connect(lambda: AboutDialog(self).exec())
+        about.clicked.connect(lambda: AboutDialog(self.settings, self).exec())
+        self.update_btn = QPushButton()  # shown once a newer release is found
+        self.update_btn.setObjectName("primary")
+        self.update_btn.hide()
         h.addWidget(brand)
         h.addStretch()
+        h.addWidget(self.update_btn)
         h.addWidget(self.lang_btn)
         h.addWidget(self.ui_theme)
         h.addWidget(self._text(about, "About"))
@@ -1033,7 +1056,7 @@ class MainWindow(QMainWindow):
         started = time.monotonic()
 
         def run(progress):
-            paths, done = [], 0
+            paths, done, warnings = [], 0, []
             for i, job in enumerate(jobs):
                 part = job.out_dir / (job.filename + ".part")
 
@@ -1053,9 +1076,9 @@ class MainWindow(QMainWindow):
                     progress(i / len(jobs), "\n" + text.format(done=fmt_size(got), total=fmt_size(max(total, got))))
 
                 # also writes the credits file
-                paths.append(export(job, self.client, report, self._cancel.is_set, downloading))
+                paths.append(export(job, self.client, report, self._cancel.is_set, downloading, warnings.append))
                 done += paths[-1].stat().st_size
-            return paths
+            return paths, warnings[:1]  # each format hits the same problem: say it once
 
         self._start(run, self._export_done, tr("Exporting…"), True, self._on_export_progress)
 
@@ -1067,15 +1090,17 @@ class MainWindow(QMainWindow):
         if not self._toast_timer.isActive():
             self._set_info(*self._info_line)
 
-    def _export_done(self, paths) -> None:
+    def _export_done(self, result) -> None:
+        paths, warnings = result
         self._set_busy(False)
         if paths:
             QApplication.clipboard().setText(credits_path(paths[-1]).read_text("utf-8"))
         self.status.setText("")
         self._apply_info()
-        box = QMessageBox(QMessageBox.Icon.Information, tr("Done"),
+        box = QMessageBox(QMessageBox.Icon.Warning if warnings else QMessageBox.Icon.Information, tr("Done"),
                           tr("Saved {n} video(s) to").format(n=len(paths)) + f"\n{self.out_dir.text()}\n\n"
-                          + tr("Credits for the caption were saved next to each video and copied to the clipboard."),
+                          + tr("Credits for the caption were saved next to each video and copied to the clipboard.")
+                          + "".join(f"\n\n{friendly(w)}" for w in warnings),
                           QMessageBox.StandardButton.Ok, self)
         open_btn = box.addButton(tr("Open folder"), QMessageBox.ButtonRole.ActionRole)
         box.exec()
@@ -1093,7 +1118,6 @@ class MainWindow(QMainWindow):
 
 
 def run() -> int:
-    import sys
     app = QApplication(sys.argv)
     app.setApplicationName("Quran Video Creator")
     app.setApplicationVersion(__version__)

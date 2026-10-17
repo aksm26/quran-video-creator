@@ -38,7 +38,7 @@ jobs:
       - uses: actions/setup-python@v6
         with: {python-version: "3.12"}
       - if: runner.os == 'Linux'  # Qt's X11 libraries, bundled into the AppImage
-        run: sudo apt-get update && sudo apt-get install -y libegl1 libgl1 libxkbcommon0 libxkbcommon-x11-0 libfontconfig1 libxcb-cursor0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 libxcb-randr0 libxcb-render-util0 libxcb-shape0 libxcb-xinerama0 libfuse2 desktop-file-utils
+        run: sudo apt-get update && sudo apt-get install -y libegl1 libgl1 libxkbcommon0 libxkbcommon-x11-0 libfontconfig1 libxcb-cursor0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 libxcb-randr0 libxcb-render-util0 libxcb-shape0 libxcb-xinerama0 libfuse2 desktop-file-utils zsync
       - run: pip install -r requirements-dev.txt
       - run: pyinstaller --noconfirm packaging/quran_video.spec
       - name: Smoke test the built app (export one verse through the frozen binary)
@@ -61,7 +61,7 @@ jobs:
           make_dmg() { hdiutil create -volname "Quran Video Creator" -srcfolder dmg -ov -format UDZO dist/${{ matrix.asset }}; }
           make_dmg || { sleep 10; make_dmg; }  # hdiutil sometimes fails with "Resource busy" on hosted runners
       - uses: actions/upload-artifact@v4
-        with: {name: "${{ matrix.asset }}", path: "dist/${{ matrix.asset }}"}
+        with: {name: "${{ matrix.asset }}", path: "dist/${{ matrix.asset }}*"}  # with the AppImage's .zsync
 
   release:  # one job creates the Release, so the three builds never race to create it
     needs: build
@@ -76,6 +76,7 @@ jobs:
         with:
           files: dist/*
           body: |
+            What's new: [CHANGELOG](https://github.com/aksm26/quran-video-creator/blob/release-1.0/CHANGELOG.md).
             **Pick your file under Assets below:** Windows `.zip`, macOS (Apple Silicon) `.dmg`, Linux `.AppImage`.
             Nothing else to install. The builds are not code-signed, so the first start asks once: see
             [Get started in 3 steps](https://github.com/aksm26/quran-video-creator#get-started-in-3-steps).

@@ -19,6 +19,10 @@ Quran Video Creator collects no personal data. It has no account, no analytics, 
   Cloudflare and Quran Foundation handle them under their own policies:
   [Quran Foundation privacy policy](https://api-docs.quran.foundation/legal/developer-privacy/),
   [Cloudflare privacy policy](https://www.cloudflare.com/privacypolicy/).
+- **Update check.** The downloaded app asks GitHub (api.github.com) once at start whether a newer version has been
+  released, and only shows a button if so. It never downloads or installs anything by itself. Turn it off under
+  About. See the
+  [GitHub privacy statement](https://docs.github.com/site-policy/privacy-policies/github-general-privacy-statement).
 
 ## What stays on your computer
 

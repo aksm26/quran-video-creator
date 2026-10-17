@@ -96,7 +96,7 @@
     "FFmpeg, bundled through imageio-ffmpeg.": "FFmpeg（imageio-ffmpeg 経由で同梱）。",
     "Credits for the caption were saved next to each video and copied to the clipboard.": "キャプション用のクレジットを各動画の横に保存し、クリップボードにコピーしました。",
     "{reciter} has no timing for verse {verse}. Pick another reciter.": "{reciter} には第 {verse} 節のタイミングがありません。別の朗誦者を選んでください。",
-    "{reciter}'s timing doesn't match the audio for this surah. Pick another reciter.": "この章では {reciter} のタイミングが音声と合いません。別の朗誦者を選んでください。",
+    "{reciter}'s word timing doesn't match the audio for this surah, so the highlighted words may be out of step. Pick another reciter for exact highlighting.": "この章では {reciter} の単語のタイミングが音声と合わないため、ハイライトがずれる場合があります。正確なハイライトには別の朗誦者を選んでください。",
     "Nothing to show: turn on the Arabic text or choose a translation.": "表示するものがありません。アラビア語テキストをオンにするか、翻訳を選んでください。",
     "Classic": "クラシック",
     "Classic Yellow": "クラシックイエロー",
@@ -113,7 +113,9 @@
     "This translation is not available for these verses. Choose another one.": "この翻訳はこれらの節では利用できません。別の翻訳を選んでください。",
     "Downloading the recitation: {done} of {total}": "朗誦をダウンロード中：{done} / {total}",
     "Previous screen": "前の画面",
-    "Next screen": "次の画面"
+    "Next screen": "次の画面",
+    "Update available: {version}": "アップデートがあります: {version}",
+    "Check for updates when the app starts": "起動時にアップデートを確認する"
   },
   "reciters": {
     "97": "ヤーシル・アッドーサリー",

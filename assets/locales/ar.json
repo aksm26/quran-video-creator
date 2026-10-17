@@ -96,7 +96,7 @@
     "FFmpeg, bundled through imageio-ffmpeg.": "FFmpeg، مرفق عبر imageio-ffmpeg.",
     "Credits for the caption were saved next to each video and copied to the clipboard.": "حُفظت بيانات النسب للوصف بجانب كل فيديو ونُسخت إلى الحافظة.",
     "{reciter} has no timing for verse {verse}. Pick another reciter.": "لا يوجد توقيت للآية {verse} لدى {reciter}. اختر قارئاً آخر.",
-    "{reciter}'s timing doesn't match the audio for this surah. Pick another reciter.": "توقيت {reciter} لا يطابق التلاوة في هذه السورة. اختر قارئاً آخر.",
+    "{reciter}'s word timing doesn't match the audio for this surah, so the highlighted words may be out of step. Pick another reciter for exact highlighting.": "توقيت كلمات {reciter} لا يطابق التلاوة في هذه السورة، فقد لا يتزامن تمييز الكلمات مع الصوت. اختر قارئًا آخر لتمييز دقيق.",
     "Nothing to show: turn on the Arabic text or choose a translation.": "لا شيء لعرضه: فعّل النص العربي أو اختر ترجمة.",
     "Classic": "كلاسيكي",
     "Classic Yellow": "كلاسيكي أصفر",
@@ -113,7 +113,9 @@
     "This translation is not available for these verses. Choose another one.": "هذه الترجمة غير متوفرة لهذه الآيات. اختر ترجمة أخرى.",
     "Downloading the recitation: {done} of {total}": "جارٍ تنزيل التلاوة: {done} من {total}",
     "Previous screen": "الشاشة السابقة",
-    "Next screen": "الشاشة التالية"
+    "Next screen": "الشاشة التالية",
+    "Update available: {version}": "تحديث متاح: {version}",
+    "Check for updates when the app starts": "التحقق من وجود تحديثات عند بدء التطبيق"
   },
   "reciters": {
     "97": "ياسر الدوسري",

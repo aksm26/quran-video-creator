@@ -96,7 +96,7 @@
     "FFmpeg, bundled through imageio-ffmpeg.": "FFmpeg, входит в состав через imageio-ffmpeg.",
     "Credits for the caption were saved next to each video and copied to the clipboard.": "Указание авторов для подписи сохранено рядом с каждым видео и скопировано в буфер обмена.",
     "{reciter} has no timing for verse {verse}. Pick another reciter.": "У {reciter} нет тайминга для аята {verse}. Выберите другого чтеца.",
-    "{reciter}'s timing doesn't match the audio for this surah. Pick another reciter.": "Тайминг {reciter} не совпадает с аудио в этой суре. Выберите другого чтеца.",
+    "{reciter}'s word timing doesn't match the audio for this surah, so the highlighted words may be out of step. Pick another reciter for exact highlighting.": "Тайминг слов {reciter} не совпадает с аудио в этой суре, поэтому подсветка слов может отставать или опережать. Для точной подсветки выберите другого чтеца.",
     "Nothing to show: turn on the Arabic text or choose a translation.": "Нечего показывать: включите арабский текст или выберите перевод.",
     "Classic": "Классика",
     "Classic Yellow": "Классика жёлтая",
@@ -113,7 +113,9 @@
     "This translation is not available for these verses. Choose another one.": "Этот перевод недоступен для этих аятов. Выберите другой.",
     "Downloading the recitation: {done} of {total}": "Загрузка чтения: {done} из {total}",
     "Previous screen": "Предыдущий экран",
-    "Next screen": "Следующий экран"
+    "Next screen": "Следующий экран",
+    "Update available: {version}": "Доступно обновление: {version}",
+    "Check for updates when the app starts": "Проверять обновления при запуске"
   },
   "reciters": {
     "97": "Ясир ад-Даусари",

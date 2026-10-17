@@ -96,7 +96,7 @@
     "FFmpeg, bundled through imageio-ffmpeg.": "FFmpeg, disertakan melalui imageio-ffmpeg.",
     "Credits for the caption were saved next to each video and copied to the clipboard.": "Kredit untuk kapsyen disimpan di sebelah setiap video dan disalin ke papan keratan.",
     "{reciter} has no timing for verse {verse}. Pick another reciter.": "{reciter} tiada masa untuk ayat {verse}. Pilih qari lain.",
-    "{reciter}'s timing doesn't match the audio for this surah. Pick another reciter.": "Masa {reciter} tidak sepadan dengan audio untuk surah ini. Pilih qari lain.",
+    "{reciter}'s word timing doesn't match the audio for this surah, so the highlighted words may be out of step. Pick another reciter for exact highlighting.": "Masa perkataan {reciter} tidak sepadan dengan audio untuk surah ini, jadi serlahan perkataan mungkin tidak selari. Pilih qari lain untuk serlahan yang tepat.",
     "Nothing to show: turn on the Arabic text or choose a translation.": "Tiada untuk dipaparkan: hidupkan teks Arab atau pilih terjemahan.",
     "Classic": "Klasik",
     "Classic Yellow": "Klasik kuning",
@@ -113,6 +113,8 @@
     "This translation is not available for these verses. Choose another one.": "Terjemahan ini tidak tersedia untuk ayat-ayat ini. Pilih terjemahan lain.",
     "Downloading the recitation: {done} of {total}": "Memuat turun bacaan: {done} daripada {total}",
     "Previous screen": "Skrin sebelumnya",
-    "Next screen": "Skrin seterusnya"
+    "Next screen": "Skrin seterusnya",
+    "Update available: {version}": "Kemas kini tersedia: {version}",
+    "Check for updates when the app starts": "Semak kemas kini apabila aplikasi dibuka"
   }
 }

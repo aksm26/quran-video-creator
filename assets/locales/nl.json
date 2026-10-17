@@ -96,7 +96,7 @@
     "FFmpeg, bundled through imageio-ffmpeg.": "FFmpeg, meegeleverd via imageio-ffmpeg.",
     "Credits for the caption were saved next to each video and copied to the clipboard.": "De bronvermelding voor het bijschrift is naast elke video opgeslagen en naar het klembord gekopieerd.",
     "{reciter} has no timing for verse {verse}. Pick another reciter.": "{reciter} heeft geen timing voor vers {verse}. Kies een andere voordrager.",
-    "{reciter}'s timing doesn't match the audio for this surah. Pick another reciter.": "De timing van {reciter} past niet bij de audio van deze soera. Kies een andere voordrager.",
+    "{reciter}'s word timing doesn't match the audio for this surah, so the highlighted words may be out of step. Pick another reciter for exact highlighting.": "De woordtiming van {reciter} past niet bij de audio van deze soera, dus de markering kan verschoven zijn. Kies een andere voordrager voor exacte markering.",
     "Nothing to show: turn on the Arabic text or choose a translation.": "Niets om te tonen: zet de Arabische tekst aan of kies een vertaling.",
     "Classic": "Klassiek",
     "Classic Yellow": "Klassiek geel",
@@ -113,6 +113,8 @@
     "This translation is not available for these verses. Choose another one.": "Deze vertaling is niet beschikbaar voor deze verzen. Kies een andere.",
     "Downloading the recitation: {done} of {total}": "Recitatie downloaden: {done} van {total}",
     "Previous screen": "Vorig scherm",
-    "Next screen": "Volgend scherm"
+    "Next screen": "Volgend scherm",
+    "Update available: {version}": "Update beschikbaar: {version}",
+    "Check for updates when the app starts": "Bij het starten op updates controleren"
   }
 }

@@ -30,6 +30,17 @@ The Arabic lights up word by word with the reciter, with a translation under it.
 Nothing else to install. The app needs internet to download the Quran text, translations and recitations.
 All downloads: [Releases page](https://github.com/aksm26/quran-video-creator/releases/latest).
 
+## What's new in 1.1
+
+- **Update notice.** The app tells you when a new version is out, with a button to the download page. It never
+  installs anything by itself, and you can turn the check off under **About**. On Linux, AppImage tools such as
+  AppImageLauncher or Gear Lever can now update the app in place.
+- **More reciters work with word-by-word highlight.** When a reciter's word timing doesn't match their audio for a
+  surah, the video is still made, with a warning that the highlight may be out of step (no warning when highlight
+  is off). Before, the export stopped.
+
+All changes: [CHANGELOG](CHANGELOG.md).
+
 ## What it makes
 
 Every video below was exported by the app as is (click for the full video with sound).

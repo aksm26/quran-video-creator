@@ -96,7 +96,7 @@
     "FFmpeg, bundled through imageio-ffmpeg.": "FFmpeg，通过 imageio-ffmpeg 捆绑。",
     "Credits for the caption were saved next to each video and copied to the clipboard.": "说明文字所需的出处信息已保存在每个视频旁边，并已复制到剪贴板。",
     "{reciter} has no timing for verse {verse}. Pick another reciter.": "{reciter} 没有第 {verse} 节的时间数据，请选择其他诵读者。",
-    "{reciter}'s timing doesn't match the audio for this surah. Pick another reciter.": "{reciter} 在本章的时间数据与音频不符，请选择其他诵读者。",
+    "{reciter}'s word timing doesn't match the audio for this surah, so the highlighted words may be out of step. Pick another reciter for exact highlighting.": "{reciter} 在本章的逐词时间数据与音频不符，高亮可能与诵读不同步。如需准确高亮，请选择其他诵读者。",
     "Nothing to show: turn on the Arabic text or choose a translation.": "没有可显示的内容：请开启阿拉伯文或选择译文。",
     "Classic": "经典",
     "Classic Yellow": "经典黄",
@@ -113,7 +113,9 @@
     "This translation is not available for these verses. Choose another one.": "这些经文没有该译文，请选择其他译文。",
     "Downloading the recitation: {done} of {total}": "正在下载诵读音频：{done} / {total}",
     "Previous screen": "上一屏",
-    "Next screen": "下一屏"
+    "Next screen": "下一屏",
+    "Update available: {version}": "有可用更新：{version}",
+    "Check for updates when the app starts": "启动时检查更新"
   },
   "reciters": {
     "97": "亚西尔·达瓦萨里",

@@ -332,11 +332,10 @@ def test_timings_that_fit_the_audio_are_left_alone(monkeypatch, tmp_path):
     t = [VerseTiming("1:1", 0, 5000, ())]
     monkeypatch.setattr(export, "media_seconds", lambda p: 5.2)
     monkeypatch.setattr(export, "envelope", lambda p: pytest.fail("decoded although the timings fit"))
-    assert export.fit_to_audio(t, tmp_path / "a.mp3", "x") is t
+    assert export.fit_to_audio(t, tmp_path / "a.mp3") is t
     monkeypatch.setattr(export, "media_seconds", lambda p: 3.0)  # timings overrun, and the audio has no clear shift
     monkeypatch.setattr(export, "envelope", lambda p: [0.0] * 150)
-    with pytest.raises(export.DataError, match="doesn't match the audio"):
-        export.fit_to_audio(t, tmp_path / "a.mp3", "x")
+    assert export.fit_to_audio(t, tmp_path / "a.mp3") is None
 
 
 # ---- a translation Quran.com no longer serves, screens, and the solid-background encode
@@ -371,6 +370,19 @@ def test_an_empty_translation_is_refused_before_export(app):
     assert "not available" in str(video_info(fake_job(), FakeClient("")).problem)  # Export is disabled with why
     assert video_info(fake_job(), FakeClient("Say, He is Allah")).problem is None
     assert video_info(fake_job(translation="None"), FakeClient("")).problem is None  # no translation chosen
+
+
+def test_timing_off_the_audio_still_exports_and_warns_only_when_words_are_lit(app, monkeypatch, tmp_path):
+    from quran_video.core import export
+
+    class WithAudio(FakeClient):
+        def audio(self, reciter_id, chapter, url, on_download=None):
+            return tmp_path / "a.mp3"
+
+    monkeypatch.setattr(export, "fit_to_audio", lambda t, f: None)  # no clear shift found
+    prep = export.prepare(fake_job(highlight="word"), WithAudio("x"))
+    assert "out of step" in str(prep.warning) and prep.audio_end_ms == 4000  # the timings as they came
+    assert export.prepare(fake_job(highlight="none"), WithAudio("x")).warning is None
 
 
 def test_screens_are_every_page_in_order():

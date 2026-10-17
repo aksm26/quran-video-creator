@@ -96,7 +96,7 @@
     "FFmpeg, bundled through imageio-ffmpeg.": "FFmpeg, incluído via imageio-ffmpeg.",
     "Credits for the caption were saved next to each video and copied to the clipboard.": "Os créditos para a legenda foram salvos ao lado de cada vídeo e copiados para a área de transferência.",
     "{reciter} has no timing for verse {verse}. Pick another reciter.": "{reciter} não tem a sincronia do versículo {verse}. Escolha outro recitador.",
-    "{reciter}'s timing doesn't match the audio for this surah. Pick another reciter.": "A sincronia de {reciter} não corresponde ao áudio nesta surata. Escolha outro recitador.",
+    "{reciter}'s word timing doesn't match the audio for this surah, so the highlighted words may be out of step. Pick another reciter for exact highlighting.": "A sincronia das palavras de {reciter} não corresponde ao áudio nesta surata, por isso o destaque pode ficar desfasado. Escolha outro recitador para um destaque exato.",
     "Nothing to show: turn on the Arabic text or choose a translation.": "Nada para mostrar: ative o texto árabe ou escolha uma tradução.",
     "Classic": "Clássico",
     "Classic Yellow": "Clássico amarelo",
@@ -113,6 +113,8 @@
     "This translation is not available for these verses. Choose another one.": "Esta tradução não está disponível para estes versículos. Escolha outra.",
     "Downloading the recitation: {done} of {total}": "Baixando a recitação: {done} de {total}",
     "Previous screen": "Tela anterior",
-    "Next screen": "Próxima tela"
+    "Next screen": "Próxima tela",
+    "Update available: {version}": "Atualização disponível: {version}",
+    "Check for updates when the app starts": "Procurar atualizações ao abrir a aplicação"
   }
 }
