@@ -3,6 +3,7 @@
 # Quran Video Creator
 
 **Make Quran recitation videos for Reels, Shorts, TikTok and YouTube in a few clicks.**<br>
+For any suggestions, bugs found, and other, please e-mail the following address: simplelogin-newsletter.equinox919@simplelogin.com
 The Arabic lights up word by word with the reciter, with a translation under it. Free, no account, no watermark.
 
 <a href="https://github.com/aksm26/quran-video-creator/releases/latest/download/QuranVideoCreator-windows-x64.zip"><img alt="Download for Windows" src="https://img.shields.io/badge/Download-Windows-0078D4?style=for-the-badge&logo=windows&logoColor=white" height="44"></a>
