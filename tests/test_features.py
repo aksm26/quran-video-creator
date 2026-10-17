@@ -385,6 +385,28 @@ def test_timing_off_the_audio_still_exports_and_warns_only_when_words_are_lit(ap
     assert export.prepare(fake_job(highlight="none"), WithAudio("x")).warning is None
 
 
+def test_the_credits_file_notes_a_timing_risk_only_when_there_is_one(app, monkeypatch, tmp_path):
+    import subprocess
+    from dataclasses import replace
+    from quran_video.core import export
+    from quran_video.core.ffmpeg import ffmpeg_exe
+    audio = tmp_path / "a.wav"
+    subprocess.run([ffmpeg_exe(), "-y", "-loglevel", "error", "-f", "lavfi", "-i", "sine=d=4", str(audio)], check=True)
+
+    class WithAudio(FakeClient):
+        def audio(self, reciter_id, chapter, url, on_download=None):
+            return audio
+
+    def notes(fitted, highlight):
+        monkeypatch.setattr(export, "fit_to_audio", lambda t, f: None if fitted is None else t)
+        job = replace(fake_job(highlight=highlight, quality="Very low"), out_dir=tmp_path)
+        text = export.credits_path(export.export(job, WithAudio("x"))).read_text("utf-8")
+        assert text.startswith(export.credits(job))  # the caption credits come first, unchanged
+        return "out of step" in text
+
+    assert notes(None, "word") and not notes(None, "none") and not notes("ok", "word")
+
+
 def test_screens_are_every_page_in_order():
     from quran_video.core.export import screens
 

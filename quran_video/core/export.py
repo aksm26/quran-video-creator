@@ -329,7 +329,8 @@ def export(job: ExportJob, client: QuranClient, progress: Callable[[float], None
             part.unlink(missing_ok=True)
             raise
     part.replace(out)
-    credits_path(out).write_text(credits(job), "utf-8")
+    note = f"\nNote (not for the caption): {prep.warning}\n" if prep.warning else ""  # the highlight may be off
+    credits_path(out).write_text(credits(job) + note, "utf-8")
     progress(1.0)
     return out
 

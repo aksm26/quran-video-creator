@@ -25,7 +25,7 @@ from ..config.quality import DEFAULT_QUALITY, QUALITIES
 from ..config.stops import DEFAULT_STOPS, STOPS, supported
 from ..config.themes import DEFAULT_THEME, THEMES, add_custom, custom_themes, is_builtin, make_custom
 from ..config.translations import BY_KEY, TRANSLATIONS, key_for_id
-from ..core.export import (Cancelled, ExportJob, VideoInfo, credits_path, estimate_bytes, estimate_seconds, export,
+from ..core.export import (Cancelled, ExportJob, VideoInfo, credits, estimate_bytes, estimate_seconds, export,
                            preview_image, video_info)
 from ..core.ffmpeg import FFmpegError, is_video
 from ..core.render import DEFAULT_TEXT_WIDTH, SPLIT_PARTS, SPLIT_VERSE, load_font
@@ -1078,7 +1078,7 @@ class MainWindow(QMainWindow):
                 # also writes the credits file
                 paths.append(export(job, self.client, report, self._cancel.is_set, downloading, warnings.append))
                 done += paths[-1].stat().st_size
-            return paths, warnings[:1]  # each format hits the same problem: say it once
+            return paths, warnings[:1], credits(jobs[0])  # each format hits the same problem: say it once
 
         self._start(run, self._export_done, tr("Exporting…"), True, self._on_export_progress)
 
@@ -1091,10 +1091,10 @@ class MainWindow(QMainWindow):
             self._set_info(*self._info_line)
 
     def _export_done(self, result) -> None:
-        paths, warnings = result
+        paths, warnings, caption = result
         self._set_busy(False)
         if paths:
-            QApplication.clipboard().setText(credits_path(paths[-1]).read_text("utf-8"))
+            QApplication.clipboard().setText(caption)  # the credits only: a timing note stays in the file
         self.status.setText("")
         self._apply_info()
         box = QMessageBox(QMessageBox.Icon.Warning if warnings else QMessageBox.Icon.Information, tr("Done"),
