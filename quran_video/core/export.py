@@ -176,10 +176,11 @@ def prepare(job: ExportJob, client: QuranClient, audio: bool = True,
     renderer = TextRenderer(w, h, verses, font, opts)
     warning = None
     if off and job.highlight != HIGHLIGHT_NONE:
-        warning = DataError("{reciter}'s word timing doesn't match the audio for this surah, so the highlighted "
-                            "words may be out of step. Pick another reciter for exact highlighting.",
-                            reciter=job.reciter.name)
+        warning = DataError(TIMING_NOTE + " Pick another reciter for exact highlighting.", reciter=job.reciter.name)
     return Prepared(renderer, clips, audio_file, start_ms, end_ms, (w, h), lead_ms, lead_audio, warning)
+
+
+TIMING_NOTE = "{reciter}'s word timing doesn't match the audio for this surah, so the highlighted words may be out of step."
 
 
 def ease(t: float) -> float:
@@ -329,7 +330,7 @@ def export(job: ExportJob, client: QuranClient, progress: Callable[[float], None
             part.unlink(missing_ok=True)
             raise
     part.replace(out)
-    note = f"\nNote (not for the caption): {prep.warning}\n" if prep.warning else ""  # the highlight may be off
+    note = f"\nNote: {TIMING_NOTE.format(**prep.warning.params)}\n" if prep.warning else ""  # the highlight may be off
     credits_path(out).write_text(credits(job) + note, "utf-8")
     progress(1.0)
     return out

@@ -1066,7 +1066,8 @@ class MainWindow(QMainWindow):
                         written = done + part.stat().st_size
                     except OSError:
                         written = done
-                    status = f"{fmt_size(written)} / {fmt_size(max(sum(sizes), written))}"
+                    total = sum(sizes)  # an estimate: once the file outgrows it, only the size so far is known
+                    status = f"{fmt_size(written)} / {fmt_size(total)}" if written < total else fmt_size(written)
                     left = (time.monotonic() - started) * (1 - total_f) / total_f if total_f > 0.02 else None
                     eta = tr("{t} left").format(t=fmt_duration(left)) if left is not None else ""
                     progress(total_f, status + "\n" + eta)

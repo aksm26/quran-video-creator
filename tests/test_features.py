@@ -402,7 +402,8 @@ def test_the_credits_file_notes_a_timing_risk_only_when_there_is_one(app, monkey
         job = replace(fake_job(highlight=highlight, quality="Very low"), out_dir=tmp_path)
         text = export.credits_path(export.export(job, WithAudio("x"))).read_text("utf-8")
         assert text.startswith(export.credits(job))  # the caption credits come first, unchanged
-        return "out of step" in text
+        assert "Pick another" not in text  # only the short note, not the dialog's advice
+        return f"Note: {job.reciter.name}'s word timing doesn't match" in text
 
     assert notes(None, "word") and not notes(None, "none") and not notes("ok", "word")
 
