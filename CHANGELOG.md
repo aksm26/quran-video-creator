@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.1.1 (17 October 2026)
+
+- When the word highlight may be out of step (see 1.1.0), the video's `.credits.txt` ends with a note saying so.
+  The caption copied to the clipboard stays the credits only.
+
 ## 1.1.0 (17 October 2026)
 
 - The app checks GitHub at start for a newer release and shows an **Update available** button that opens its
