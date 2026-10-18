@@ -344,12 +344,43 @@ def test_a_shift_is_kept_when_the_audio_tail_is_trimmed_too(monkeypatch, tmp_pat
     assert fitted[-1].end == audio_ms  # stopped at the end of the audio
 
 
+def _verses(n, late_from=None, late_ms=0):
+    """n verses of 3 words, 1.2-4.2 s of speech then a 0.8-1.5 s pause (lengths vary, as in a recitation), and the
+    envelope of their audio; from verse `late_from` on, the audio comes `late_ms` after the timings (QF data for
+    Hani ar-Rifai, surah 36)."""
+    from quran_video.api.models import VerseTiming
+    from quran_video.core.timing import ENV_RATE
+    t, env, a = [], [0.0] * (n * 6000 * ENV_RATE // 1000), 1000
+    for v in range(n):
+        speech, word = 1200 + v * 733 % 3000, (1200 + v * 733 % 3000) // 3
+        t.append(VerseTiming(f"36:{v + 1}", a, a + speech,
+                             tuple((k + 1, a + word * k, a + word * k + word) for k in range(3))))
+        b = (a + (late_ms if late_from is not None and v >= late_from else 0)) * ENV_RATE // 1000
+        env[b:b + speech * ENV_RATE // 1000] = [1000.0] * (speech * ENV_RATE // 1000)
+        a += speech + 800 + v * 389 % 700
+    return t, env
+
+
+def test_part_of_a_surah_that_is_off_is_corrected_verse_by_verse():
+    import random
+    from quran_video.core.timing import ONSET_LAG, local_offsets
+    t, env = _verses(40, late_from=20, late_ms=1200)
+    fix = local_offsets(t, env)
+    assert fix[:20] == [0] * 20  # in place
+    assert all(abs(f - 1200) <= ONSET_LAG for f in fix[22:38])  # the late part follows its audio
+    assert all(f == 0 or abs(f - 1200) <= ONSET_LAG for f in fix[20:22])  # at the step, neighbours may disagree
+    assert fix[38:] == [0, 0]  # the last two have too few neighbours to be sure
+    assert local_offsets(*_verses(40)) == [0] * 40
+    noise = random.Random(1)  # audio that has nothing to do with the timings: nothing is moved
+    assert local_offsets(t, [noise.choice((0.0, 1000.0)) for _ in env]) == [0] * 40
+
+
 def test_timings_that_fit_the_audio_are_left_alone(monkeypatch, tmp_path):
     from quran_video.api.models import VerseTiming
     from quran_video.core import export
     t = [VerseTiming("1:1", 0, 5000, ())]
     monkeypatch.setattr(export, "media_seconds", lambda p: 5.2)
-    monkeypatch.setattr(export, "envelope", lambda p: pytest.fail("decoded although the timings fit"))
+    monkeypatch.setattr(export, "envelope", lambda p: [0.0] * 260)  # nothing to line up with: no verse moved
     assert export.fit_to_audio(t, tmp_path / "a.mp3") is t
     monkeypatch.setattr(export, "media_seconds", lambda p: 3.0)  # timings overrun, and the audio has no clear shift
     monkeypatch.setattr(export, "envelope", lambda p: [0.0] * 150)

@@ -2,6 +2,8 @@
 
 import itertools
 import logging
+import statistics
+from collections.abc import Callable
 from dataclasses import dataclass
 
 from ..api.models import VerseTiming
@@ -56,23 +58,30 @@ def clean_segments(t: VerseTiming, n_words: int) -> list[Seg]:
 ENV_RATE = 50  # envelope frames per second (20 ms each), see ffmpeg.envelope
 
 
-def audio_offset(timings: list[VerseTiming], env: list[float]) -> int | None:
-    """Shift (ms) that puts the word starts on speech onsets in the audio envelope, or None when no clear one.
-    Only call it once a mismatch is proven: on short surahs a stray onset can win."""
-    # Only each verse's first word: it follows a pause, so there is one clear peak. With every word the syllable
-    # rhythm gives several peaks ~300 ms apart and the wrong one can win (Dussary, surah 4).
-    starts = [round(min((s[1] for s in t.segments if len(s) == 3), default=t.start)) for t in timings]
-    half = ENV_RATE // 5  # frames in 200 ms: the window either side of each start
+def _rise(env: list[float]) -> Callable[[float], float]:
+    """rise(ms): loudness in the 200 ms after `ms` minus the 200 ms before. High where speech starts, low where it ends."""
+    half = ENV_RATE // 5
     running = [0.0, *itertools.accumulate(env)]  # running[i] = sum of env[:i], so any window sum is one subtraction
 
+    def rise(ms: float) -> float:
+        i = round(ms) * ENV_RATE // 1000
+        return running[i + half] - 2 * running[i] + running[i - half] if half <= i <= len(env) - half else 0.0
+    return rise
+
+
+def _first_starts(timings: list[VerseTiming]) -> list[int]:
+    """Each verse's first word start. It follows a pause, so it gives one clear onset; with every word the syllable
+    rhythm gives several peaks ~300 ms apart and the wrong one can win (Dussary, surah 4)."""
+    return [round(min((s[1] for s in t.segments if len(s) == 3), default=t.start)) for t in timings]
+
+
+def audio_offset(timings: list[VerseTiming], env: list[float]) -> int | None:
+    """Shift (ms) that puts the verse starts on speech onsets in the audio envelope, or None when no clear one.
+    Only call it once a mismatch is proven: on short surahs a stray onset can win."""
+    starts, rise = _first_starts(timings), _rise(env)
+
     def score(ms: int) -> float:
-        total = 0.0
-        for start in starts:
-            i = (start + ms) * ENV_RATE // 1000
-            if half <= i <= len(env) - half:
-                # loudness just after minus loudness just before: a word starts where the audio gets louder
-                total += running[i + half] - 2 * running[i] + running[i - half]
-        return total
+        return sum(rise(start + ms) for start in starts)
 
     best = max(range(-15000, 15001, 1000 // ENV_RATE), key=score)
     # the last verse must start inside the audio; its end may run past it (the file's tail is trimmed too: surah 2)
@@ -85,6 +94,38 @@ def shifted(timings: list[VerseTiming], ms: int) -> list[VerseTiming]:
     return [VerseTiming(t.key, t.start + ms, t.end + ms,
                         tuple((s[0], s[1] + ms, s[2] + ms) if len(s) == 3 else s for s in t.segments))
             for t in timings]
+
+
+ONSET_LAG = 140  # rise() reads correctly timed verse starts ~140 ms late (Alafasy, Sudais, Ghamdi... all 100-260)
+
+
+def local_offsets(timings: list[VerseTiming], env: list[float]) -> list[int]:
+    """Per-verse correction (ms, 0 = none) where part of a surah is off: a step (Hani ar-Rifai 36: +1.4 s from verse
+    33) or a drift (Abdul Basit Mujawwad 36: up to -0.8 s). For a verse, its neighbours' starts are matched to the
+    onsets and their ends to the falls. A correction needs both to move by the same amount, compared with the verses
+    that are in place, and its neighbours to agree: the onset measure alone is fooled by some recitation styles."""
+    rise, window, step = _rise(env), 7, 1000 // ENV_RATE
+    starts = _first_starts(timings)
+    ends = [round(max((s[2] for s in t.segments if len(s) == 3), default=t.end)) for t in timings]
+    shifts = sorted(range(-3000, 3001, step), key=abs)  # ties (silence) go to the smallest shift
+
+    def best(points: list[int], sign: int) -> int:
+        return max(shifts, key=lambda d: sum(sign * rise(p + d) for p in points))
+
+    near = [slice(max(0, i - window), i + window + 1) for i in range(len(timings))]
+    on = [best(starts[s], 1) for s in near]
+    off = [best(ends[s], -1) for s in near]
+    in_place = [o for s, o in zip(on, off) if abs(s - ONSET_LAG) < 300]
+    if not in_place:
+        return [0] * len(timings)
+    end_lag = statistics.median(in_place)  # where the falls sit for this reciter: it depends on how the verses end
+    out = []
+    for i, (s, o) in enumerate(zip(on, off)):
+        # the first and last two verses have half a window and too few neighbours to agree: never corrected
+        c, around = s - ONSET_LAG, on[i - 2:i + 3] if i >= 2 else []
+        steady = len(around) == 5 and max(around) - min(around) <= 200
+        out.append(c if abs(c) >= 400 and abs(o - end_lag - c) <= 300 and steady else 0)
+    return out
 
 
 def cut_range(timings: list[VerseTiming]) -> tuple[int, int]:
