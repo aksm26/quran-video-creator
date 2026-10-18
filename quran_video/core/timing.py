@@ -59,7 +59,9 @@ ENV_RATE = 50  # envelope frames per second (20 ms each), see ffmpeg.envelope
 def audio_offset(timings: list[VerseTiming], env: list[float]) -> int | None:
     """Shift (ms) that puts the word starts on speech onsets in the audio envelope, or None when no clear one.
     Only call it once a mismatch is proven: on short surahs a stray onset can win."""
-    starts = [s[1] for t in timings for s in t.segments if len(s) == 3] or [t.start for t in timings]
+    # Only each verse's first word: it follows a pause, so there is one clear peak. With every word the syllable
+    # rhythm gives several peaks ~300 ms apart and the wrong one can win (Dussary, surah 4).
+    starts = [round(min((s[1] for s in t.segments if len(s) == 3), default=t.start)) for t in timings]
     half = ENV_RATE // 5  # frames in 200 ms: the window either side of each start
     running = [0.0, *itertools.accumulate(env)]  # running[i] = sum of env[:i], so any window sum is one subtraction
 
@@ -72,8 +74,9 @@ def audio_offset(timings: list[VerseTiming], env: list[float]) -> int | None:
                 total += running[i + half] - 2 * running[i] + running[i - half]
         return total
 
-    best = max(range(-15000, 15001, 50), key=score)
-    fits = timings[-1].end + best <= len(env) * 1000 // ENV_RATE + 1000
+    best = max(range(-15000, 15001, 1000 // ENV_RATE), key=score)
+    # the last verse must start inside the audio; its end may run past it (the file's tail is trimmed too: surah 2)
+    fits = starts[-1] + best < len(env) * 1000 // ENV_RATE
     return best if abs(best) >= 500 and fits and score(best) > 2 * max(score(0), 0) else None
 
 
