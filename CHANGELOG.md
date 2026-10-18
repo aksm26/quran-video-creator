@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.1.2 (18 October 2026)
+
+- Word highlighting follows the voice for reciters whose word timing doesn't match their audio file:
+  - Yasser ad-Dussary: on many surahs every word was highlighted 3 to 7 seconds late. On some (Al-Baqarah,
+    Ghafir) the app could not line it up at all and warned that the highlight may be out of step.
+  - Hani ar-Rifai and Abdul Basit Abdul Samad: on some surahs, part of the surah was up to 1.5 seconds off.
+- The app now checks the timing against the audio for every export, and moves a verse only when the audio clearly
+  shows where it is. Reciters whose timing already matches are left exactly as they were.
+
 ## 1.1.1 (17 October 2026)
 
 - When the word highlight may be out of step (see 1.1.0), the video's `.credits.txt` ends with a note saying so.
