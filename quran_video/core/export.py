@@ -28,7 +28,7 @@ from .ffmpeg import (IMAGE_EXTS, NO_WINDOW, FFmpegError, LeadAudio, build_cmd, e
 from .render import (DEFAULT_TEXT_WIDTH, HIGHLIGHT_NONE, HIGHLIGHT_WORD, REVEAL_OFF, SPLIT_PARTS, RenderOptions,
                      TextRenderer)
 from .timing import (Clip, DataError, State, audio_offset, basmala_available, build_clips, check_timings, cut_range,
-                     shifted, state_at)
+                     local_offsets, shifted, state_at)
 
 log = logging.getLogger(__name__)
 
@@ -104,17 +104,28 @@ class Frame(NamedTuple):
 def fit_to_audio(timings: list[VerseTiming], audio_file: Path) -> list[VerseTiming] | None:
     """QF sometimes pairs timings with a re-cut audio file (Dussary: words 3 s late on surah 2, 7 s on surah 35).
     Timings that run past the end of the audio prove it; then find the shift from the audio itself.
-    None when they run past it and no clear shift is found: the words will be out of step with the audio."""
+    None when they run past it and no clear shift is found: the words will be out of step with the audio.
+    Then parts of a surah that are still off (a step or a drift) are corrected verse by verse."""
     secs = media_seconds(audio_file)
-    if secs is None or timings[-1].end <= secs * 1000 + 1000:
+    if secs is None:
         return timings
-    ms = audio_offset(timings, envelope(audio_file))
-    if ms is None:
-        log.warning("timings run past the audio and no clear shift was found, used as they are")
-        return None
-    log.info("timings shifted %+d ms to match the audio", ms)
-    fitted = shifted(timings, ms)
-    last = fitted[-1]  # its end can still run past the audio: stop it there, so the cut never asks for missing audio
+    env = envelope(audio_file)
+    fitted = timings
+    if timings[-1].end > secs * 1000 + 1000:
+        ms = audio_offset(timings, env)
+        if ms is None:
+            log.warning("timings run past the audio and no clear shift was found, used as they are")
+            return None
+        log.info("timings shifted %+d ms to match the audio", ms)
+        fitted = shifted(timings, ms)
+    fixes = local_offsets(fitted, env)
+    if any(fixes):
+        log.info("%d verses shifted to match the audio (%+d to %+d ms)", sum(1 for f in fixes if f), min(fixes),
+                 max(fixes))
+        fitted = [shifted([t], f)[0] if f else t for t, f in zip(fitted, fixes)]
+    if fitted is timings:
+        return timings
+    last = fitted[-1]  # its end can run past the audio: stop it there, so the cut never asks for missing audio
     return [*fitted[:-1], replace(last, end=min(last.end, max(last.start + 1, int(secs * 1000))))]
 
 
