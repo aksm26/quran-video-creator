@@ -326,6 +326,24 @@ def test_timings_for_a_recut_audio_file_are_shifted_back():
     assert audio_offset(t, [0.0] * len(env)) is None  # silence: no clear shift
 
 
+def test_a_shift_is_kept_when_the_audio_tail_is_trimmed_too(monkeypatch, tmp_path):
+    from quran_video.api.models import VerseTiming
+    from quran_video.core import export
+    from quran_video.core.timing import ENV_RATE
+    # QF data for Dussary, surah 2: words 3.08 s late, float times, and after the shift the last verse still ends
+    # 1.1 s past the audio. Words 300 ms apart, verses split by 1 s pauses.
+    t = [VerseTiming(f"2:{v + 1}", 5000 + 3400 * v, 5000 + 3400 * v + 2400,
+                     tuple((k + 1, 5000.0 + 3400 * v + 300 * k, 5000.0 + 3400 * v + 300 * k + 300) for k in range(8)))
+         for v in range(30)]
+    audio_ms = t[-1].end - 3080 - 1100
+    env = _bursts([round(s[1]) - 3080 for v in t for s in v.segments], audio_ms // 1000 + 1)[:audio_ms * ENV_RATE // 1000]
+    monkeypatch.setattr(export, "media_seconds", lambda p: audio_ms / 1000)
+    monkeypatch.setattr(export, "envelope", lambda p: env)
+    fitted = export.fit_to_audio(t, tmp_path / "a.mp3")
+    assert fitted is not None and abs(fitted[0].start - t[0].start + 3080) <= 1000 // ENV_RATE
+    assert fitted[-1].end == audio_ms  # stopped at the end of the audio
+
+
 def test_timings_that_fit_the_audio_are_left_alone(monkeypatch, tmp_path):
     from quran_video.api.models import VerseTiming
     from quran_video.core import export

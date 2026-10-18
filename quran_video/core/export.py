@@ -102,7 +102,7 @@ class Frame(NamedTuple):
 
 
 def fit_to_audio(timings: list[VerseTiming], audio_file: Path) -> list[VerseTiming] | None:
-    """QF sometimes pairs timings with a re-cut audio file (Dussary, surah 35: intro cut, words 7 s late).
+    """QF sometimes pairs timings with a re-cut audio file (Dussary: words 3 s late on surah 2, 7 s on surah 35).
     Timings that run past the end of the audio prove it; then find the shift from the audio itself.
     None when they run past it and no clear shift is found: the words will be out of step with the audio."""
     secs = media_seconds(audio_file)
@@ -113,7 +113,9 @@ def fit_to_audio(timings: list[VerseTiming], audio_file: Path) -> list[VerseTimi
         log.warning("timings run past the audio and no clear shift was found, used as they are")
         return None
     log.info("timings shifted %+d ms to match the audio", ms)
-    return shifted(timings, ms)
+    fitted = shifted(timings, ms)
+    last = fitted[-1]  # its end can still run past the audio: stop it there, so the cut never asks for missing audio
+    return [*fitted[:-1], replace(last, end=min(last.end, max(last.start + 1, int(secs * 1000))))]
 
 
 def check_translation(verses: list[Verse], translation: str) -> None:
