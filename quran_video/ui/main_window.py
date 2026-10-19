@@ -179,13 +179,15 @@ class MainWindow(QMainWindow):
         lay.addWidget(widget)
         return box
 
-    def _hint(self, key: str, beside: QWidget) -> QLabel:
-        """A small info icon that explains `beside` on hover. `beside` gets the same tooltip, for keyboard and
-        screen reader users."""
-        hint = QLabel()
-        hint.setCursor(Qt.CursorShape.WhatsThisCursor)
-        hint.setAlignment(Qt.AlignmentFlag.AlignCenter)
+    def _hint(self, key: str, beside: QWidget) -> QToolButton:
+        """A small info button that explains `beside`: on hover, and in a message when clicked (a tooltip alone
+        is easy to miss and gone in seconds). `beside` gets the same tooltip, for keyboard and screen reader users."""
+        hint = QToolButton()
+        hint.setObjectName("hint")
+        hint.setIconSize(QSize(18, 18))
+        hint.setCursor(Qt.CursorShape.PointingHandCursor)
         hint.setFixedHeight(beside.sizeHint().height())  # centred on the control beside it
+        hint.clicked.connect(lambda: QMessageBox.information(self, "", tr(key)))
         self._icons.append((hint, "info-circle"))
         for widget in (hint, beside):
             self._text(widget, key, "setToolTip")

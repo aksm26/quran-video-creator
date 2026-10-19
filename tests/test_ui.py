@@ -220,6 +220,17 @@ def test_quality_and_widths_reach_the_job(win):
     assert "credits" in win.export_btn.toolTip()  # posting the Quran Foundation credits is required
 
 
+def test_info_buttons_explain_on_click(win, monkeypatch):
+    from PySide6.QtWidgets import QMessageBox
+    shown = []
+    monkeypatch.setattr(QMessageBox, "information", lambda parent, title, text: shown.append(text))
+    hints = [w for w, name in win._icons if name == "info-circle"]
+    for hint in hints:
+        hint.click()
+    assert len(hints) == 2 and [t[:8] for t in shown] == [h.toolTip()[:8] for h in hints]
+    assert any("Quran.com" in t for t in shown) and any("credits" in t for t in shown)
+
+
 def test_custom_themes_can_be_saved_and_deleted(win):
     from PySide6.QtWidgets import QPushButton
     from quran_video.ui.themes_dialog import ThemesDialog

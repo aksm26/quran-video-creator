@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.2.1 (19 October 2026)
+
+- The ⓘ info icons now open their explanation when clicked (before, nothing happened on a click and the hover text
+  disappeared after a few seconds). They can also be reached with the keyboard.
+- The info icon (Bootstrap Icons, MIT) is listed in `THIRD_PARTY.md` with the other icons.
+
 ## 1.2.0 (19 October 2026)
 
 - The first word of a verse no longer lights up in the silence before it is recited, and the last word stays lit

@@ -65,6 +65,8 @@ QPushButton#danger { background: @error; border: 1px solid @error; color: @on_er
 QPushButton#danger:hover { background: @error; border-color: @text; }
 QToolButton#lang { background: @card; border: 1px solid @line; border-radius: 6px; padding: 7px 10px; }
 QToolButton#lang:hover { background: @hover; }
+QToolButton#hint { background: transparent; border: none; border-radius: 6px; padding: 0 4px; }
+QToolButton#hint:hover, QToolButton#hint:focus { background: @hover; }
 
 /* the language list */
 QFrame#listpopup { background: @card; border: 1px solid @line; border-radius: 6px; }
