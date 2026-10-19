@@ -217,6 +217,7 @@ def test_quality_and_widths_reach_the_job(win):
     assert abs(job.name_scale - 1.5) < 1e-9 and job.highlight == "keep" and not job.highlight_fade
     assert job.bg_end == "freeze" and job.verse_change == "last_word"
     assert win.verse_change.toolTip()  # the hint says why the choice exists: the timings may have errors
+    assert "credits" in win.export_btn.toolTip()  # posting the Quran Foundation credits is required
 
 
 def test_custom_themes_can_be_saved_and_deleted(win):

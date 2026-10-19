@@ -211,9 +211,10 @@ def test_reciter_names_and_styles_are_translated():
 def test_switching_language_translates_the_window_and_picks_its_translation(app, tmp_path, monkeypatch):
     from PySide6.QtCore import QSettings
     QSettings.setPath(QSettings.Format.NativeFormat, QSettings.Scope.UserScope, str(tmp_path / "cfg"))
-    from quran_video.ui.main_window import VERSE_CHANGE_HINT, MainWindow
+    from quran_video.ui.main_window import CREDITS_HINT, VERSE_CHANGE_HINT, MainWindow
     # Shown in English until a person translates them; empty this set once they are in assets/locales.
-    awaiting = {"Next verse appears", "When the verse ends", "When the last word ends", VERSE_CHANGE_HINT}
+    awaiting = {"Next verse appears", "When the verse ends", "When the last word ends", VERSE_CHANGE_HINT,
+                CREDITS_HINT}
     w = MainWindow()
     try:
         assert w.in_parts.text() == "Cut at stop signs" and w.translation.currentData().startswith("English")

@@ -42,6 +42,9 @@ MEDIA_FILTER = "Images and videos (*.png *.jpg *.jpeg *.webp *.bmp *.mp4 *.mov *
 PANEL_WIDTH = 560
 TOAST_MS = 3000  # a warning flashes in the footer this long
 TIP_MS = 2500  # a tooltip stays this long
+CREDITS_HINT = ("Required: paste the credits from the .credits.txt file saved next to each video into your post's "
+                "description. They credit the Quran Foundation for the text, translation and recitation, as its "
+                "terms require. The app's name does not need to be mentioned.")
 VERSE_CHANGE_HINT = ("The recitation timings come from Quran.com and some contain errors, so a verse can change "
                      "too early or too late. If the text changes at the wrong moment, try the other choice.")
 INDENT = 22  # how far a dependent control is indented under the one it depends on
@@ -175,6 +178,18 @@ class MainWindow(QMainWindow):
         lay.addWidget(self._text(caption, key))
         lay.addWidget(widget)
         return box
+
+    def _hint(self, key: str, beside: QWidget) -> QLabel:
+        """A small info icon that explains `beside` on hover. `beside` gets the same tooltip, for keyboard and
+        screen reader users."""
+        hint = QLabel()
+        hint.setCursor(Qt.CursorShape.WhatsThisCursor)
+        hint.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        hint.setFixedHeight(beside.sizeHint().height())  # centred on the control beside it
+        self._icons.append((hint, "info-circle"))
+        for widget in (hint, beside):
+            self._text(widget, key, "setToolTip")
+        return hint
 
     def _combo(self, items: list[tuple[str, object]]) -> NoWheelCombo:
         combo = NoWheelCombo()
@@ -340,6 +355,7 @@ class MainWindow(QMainWindow):
         row.addWidget(self.status)
         row.addWidget(self._text(self.cancel_btn, "Cancel"))
         row.addWidget(self.export_btn)
+        row.addWidget(self._hint(CREDITS_HINT, self.export_btn))
         f.addLayout(row)
         outer.addWidget(footer)
         self._apply_info()
@@ -381,13 +397,7 @@ class MainWindow(QMainWindow):
         lay.addWidget(self.basmala_dep)
         self.verse_change = self._combo([("When the verse ends", VERSE_CHANGE_TIMING),
                                          ("When the last word ends", VERSE_CHANGE_LAST_WORD)])
-        hint = QLabel()  # hover for why: the timings themselves can be wrong
-        hint.setCursor(Qt.CursorShape.WhatsThisCursor)
-        hint.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        hint.setFixedHeight(self.verse_change.sizeHint().height())  # centred on the box beside it
-        self._icons.append((hint, "info-circle"))
-        for widget in (hint, self.verse_change):  # the combo too, for keyboard and screen reader users
-            self._text(widget, VERSE_CHANGE_HINT, "setToolTip")
+        hint = self._hint(VERSE_CHANGE_HINT, self.verse_change)  # hover for why: the timings can be wrong
         row = QHBoxLayout()
         row.addWidget(self._field("Next verse appears", self.verse_change), 1)
         row.addWidget(hint, 0, Qt.AlignmentFlag.AlignBottom)
