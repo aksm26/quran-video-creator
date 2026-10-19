@@ -7,6 +7,12 @@
   and Abdul Basit Abdul Samad, whose first words lit up about half a second early.
 - New choice under Recitation: the next verse appears when the verse ends (as before) or as soon as the last word
   ends. The ⓘ next to it explains that the timings can contain errors. Also `--verse-change` on the command line.
+  This choice is in English in every app language until it is translated.
+- The verse number always stays on the line of the verse's last word; before, it sometimes wrapped onto a line of
+  its own.
+- When a verse is too long for one screen, each screen shows the translation of its own words, instead of the
+  whole translation repeated. Translations are never cut inside a [bracketed] insertion.
+- New app icon.
 
 ## 1.1.2 (18 October 2026)
 

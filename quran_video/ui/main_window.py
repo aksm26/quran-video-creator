@@ -383,6 +383,8 @@ class MainWindow(QMainWindow):
                                          ("When the last word ends", VERSE_CHANGE_LAST_WORD)])
         hint = QLabel()  # hover for why: the timings themselves can be wrong
         hint.setCursor(Qt.CursorShape.WhatsThisCursor)
+        hint.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        hint.setFixedHeight(self.verse_change.sizeHint().height())  # centred on the box beside it
         self._icons.append((hint, "info-circle"))
         for widget in (hint, self.verse_change):  # the combo too, for keyboard and screen reader users
             self._text(widget, VERSE_CHANGE_HINT, "setToolTip")
