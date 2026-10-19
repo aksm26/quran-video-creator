@@ -27,8 +27,8 @@ from .ffmpeg import (IMAGE_EXTS, NO_WINDOW, FFmpegError, LeadAudio, build_cmd, e
                      media_seconds)
 from .render import (DEFAULT_TEXT_WIDTH, HIGHLIGHT_NONE, HIGHLIGHT_WORD, REVEAL_OFF, SPLIT_PARTS, RenderOptions,
                      TextRenderer)
-from .timing import (Clip, DataError, State, audio_offset, basmala_available, build_clips, check_timings, cut_range,
-                     local_offsets, shifted, state_at)
+from .timing import (Clip, DataError, State, audio_offset, basmala_available, build_clips, change_at_last_word,
+                     check_timings, cut_range, local_offsets, shifted, snap_edges, state_at)
 
 log = logging.getLogger(__name__)
 
@@ -38,6 +38,7 @@ FADE_IN_MS = 350
 LEAD_MS = 120  # the next text is swapped in this long before its first word, while invisible
 HIGHLIGHT_FADE_MS = 240  # a newly lit word eases from the text colour to the highlight colour
 HIGHLIGHT_LEAD_MS = 70  # and starts turning this early, so the colour has arrived when the word is heard
+VERSE_CHANGE_TIMING, VERSE_CHANGE_LAST_WORD = "timing", "last_word"
 
 
 @dataclass
@@ -68,6 +69,7 @@ class ExportJob:
     background: Path | None = None  # image or video; None = the theme's solid colour
     stops: tuple[str, ...] = DEFAULT_STOPS  # which stop signs cut a verse into parts
     basmala: bool = False  # open with the Basmala: the reciter's own 1:1 recitation, word timing included
+    verse_change: str = VERSE_CHANGE_TIMING  # the next verse shows when its timing starts, or when the last word ends
 
     @property
     def filename(self) -> str:
@@ -105,7 +107,8 @@ def fit_to_audio(timings: list[VerseTiming], audio_file: Path) -> list[VerseTimi
     """QF sometimes pairs timings with a re-cut audio file (Dussary: words 3 s late on surah 2, 7 s on surah 35).
     Timings that run past the end of the audio prove it; then find the shift from the audio itself.
     None when they run past it and no clear shift is found: the words will be out of step with the audio.
-    Then parts of a surah that are still off (a step or a drift) are corrected verse by verse."""
+    Then parts of a surah that are still off (a step or a drift) are corrected verse by verse, and each verse's
+    first and last word are put where the voice starts and stops."""
     secs = media_seconds(audio_file)
     if secs is None:
         return timings
@@ -123,7 +126,8 @@ def fit_to_audio(timings: list[VerseTiming], audio_file: Path) -> list[VerseTimi
         log.info("%d verses shifted to match the audio (%+d to %+d ms)", sum(1 for f in fixes if f), min(fixes),
                  max(fixes))
         fitted = [shifted([t], f)[0] if f else t for t, f in zip(fitted, fixes)]
-    if fitted is timings:
+    fitted = snap_edges(fitted, env)
+    if fitted == timings:
         return timings
     last = fitted[-1]  # its end can run past the audio: stop it there, so the cut never asks for missing audio
     return [*fitted[:-1], replace(last, end=min(last.end, max(last.start + 1, int(secs * 1000))))]
@@ -179,6 +183,8 @@ def prepare(job: ExportJob, client: QuranClient, audio: bool = True,
         verses = [Verse("basmala", 0, basmala_words, first.translation), *verses]
     else:
         clips = build_clips(timings, counts, start_ms)
+    if job.verse_change == VERSE_CHANGE_LAST_WORD:
+        clips = change_at_last_word(clips)
     w, h = scaled_size(*FORMATS[job.fmt], QUALITIES[job.quality].scale)
     opts = RenderOptions(theme, split=job.split, stops=job.stops, highlight=job.highlight, reveal=job.reveal,
                          line_spacing=job.line_spacing, show_arabic=job.show_arabic,

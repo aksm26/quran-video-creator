@@ -4,7 +4,7 @@ import itertools
 import logging
 import statistics
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 from ..api.models import VerseTiming
 
@@ -125,6 +125,58 @@ def local_offsets(timings: list[VerseTiming], env: list[float]) -> list[int]:
         c, around = s - ONSET_LAG, on[i - 2:i + 3] if i >= 2 else []
         steady = len(around) == 5 and max(around) - min(around) <= 200
         out.append(c if abs(c) >= 400 and abs(o - end_lag - c) <= 300 and steady else 0)
+    return out
+
+
+QUIET = 0.1  # loudness below this share of the median is silence (speech sits near 1, pauses under 0.07)
+PAUSE_MS = 200  # a silence this long is a pause; shorter ones are stops inside a word
+EDGE_MS = 1500  # how far a verse's first or last word may be moved
+
+
+def snap_edges(timings: list[VerseTiming], env: list[float]) -> list[VerseTiming]:
+    """Put each verse's first word start and last word end where the voice starts and stops. QF often starts
+    the first word in the silence before it (Minshawi, Husary, Abdul Basit: 0.5-0.9 s early) and ends the last
+    word while it is still being held (Dussary, Abdul Basit). Verses that need nothing stay the same objects."""
+    if not env:
+        return timings
+    frame, thr = 1000 // ENV_RATE, QUIET * statistics.median(env)
+
+    def quiet(ms: int) -> bool:
+        i = ms // frame
+        return 0 <= i < len(env) and env[i] < thr  # outside the audio counts as sound: nothing is moved there
+
+    out = []
+    for t in timings:
+        segs = [list(s) for s in t.segments]
+        timed = [s for s in segs if len(s) == 3]
+        if not timed:
+            out.append(t)
+            continue
+        first, last = min(timed, key=lambda s: s[1]), max(timed, key=lambda s: s[2])
+        a = round(first[1])
+        if quiet(a):
+            onset = next((ms for ms in range(a, min(round(first[2]) - 3 * frame, a + EDGE_MS), frame)
+                          if not quiet(ms)), None)
+            first[1] = onset if onset is not None else first[1]
+        b = round(last[2])
+        if not quiet(b):
+            limit, run = min(t.end, b + EDGE_MS), PAUSE_MS // frame
+            pause = next((ms for ms in range(b, limit - PAUSE_MS, frame)
+                          if all(quiet(ms + k * frame) for k in range(run))), None)
+            last[2] = pause if pause is not None else last[2]
+        new = tuple(tuple(s) for s in segs)
+        out.append(t if new == t.segments else VerseTiming(t.key, t.start, t.end, new))
+    return out
+
+
+def change_at_last_word(clips: list[Clip]) -> list[Clip]:
+    """Each verse comes on screen once the last word of the one before has been recited, instead of when its own
+    timing starts. Never later than that start."""
+    out = clips[:1]
+    for c in clips[1:]:
+        prev = out[-1]
+        end = max((s.end for s in prev.segs), default=c.start)
+        out.append(replace(c, start=max(prev.start + 1, min(c.start, end))))
     return out
 
 

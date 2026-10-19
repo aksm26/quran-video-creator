@@ -59,6 +59,8 @@ def main(argv=None) -> int:
     add("--name-size", type=float, default=ExportJob.name_scale, help="surah name size, 1.0 = normal (0.5 to 2.0)")
     add("--bg-end", default=ExportJob.bg_end, choices=["loop", "freeze"],
         help="a background video shorter than the recitation: loop it or freeze its last frame")
+    add("--verse-change", default=ExportJob.verse_change, choices=["timing", "last_word"],
+        help="show the next verse when its timing starts, or as soon as the last word of the one before ends")
     add("--png-only", action="store_true", help="write one still per page instead of a video")
     args = parser.parse_args(argv)
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
@@ -88,7 +90,7 @@ def main(argv=None) -> int:
         surah_name=args.surah_name, translation=args.translation, overlay=args.overlay, quality=args.quality,
         text_width=args.text_width, translation_width=args.translation_width, name_scale=args.name_size,
         bg_end=args.bg_end, highlight_fade=not args.no_highlight_fade, background=args.bg, basmala=args.basmala,
-        stops=stops)
+        stops=stops, verse_change=args.verse_change)
     def show_download(done: int, total: int) -> None:
         amount = f"{done / total:.0%}" if total else f"{done // 1_000_000} MB"
         print(f"\rDownloading the recitation: {amount}", end="", flush=True)

@@ -1,5 +1,6 @@
 from quran_video.api.models import VerseTiming
-from quran_video.core.timing import ALL, Seg, State, build_clips, clean_segments, cut_range, state_at
+from quran_video.core.timing import (ALL, ENV_RATE, Seg, State, build_clips, change_at_last_word, clean_segments,
+                                     cut_range, snap_edges, state_at)
 
 
 def vt(key, a, b, segs):
@@ -56,3 +57,30 @@ def test_split_translation_follows_arabic_parts_at_punctuation():
     chinese = "阿拉，除他之外绝无应受崇拜的。他是永生的，自存的。"  # no spaces: cut between characters
     assert "".join(split_translation(chinese, [1, 1, 1])) == chinese
     assert all(split_translation("one two three", [1, 1, 1]))  # never an empty piece when words allow
+
+
+def _env(spans, ms):
+    """Loudness 1 inside the given (start, end) ms spans, 0 elsewhere."""
+    f = 1000 // ENV_RATE
+    return [1.0 if any(a <= k * f < b for a, b in spans) else 0.0 for k in range(ms // f)]
+
+
+def test_first_and_last_word_snap_to_the_voice():
+    # QF starts verse 2's first word in the pause (Minshawi) and ends verse 1's last word while it is still held
+    t = [vt("1:1", 0, 3000, [(1, 0, 1000), (2, 1000, 1800)]), vt("1:2", 3000, 6000, [(1, 3000, 4000), (2, 4000, 5000)])]
+    env = _env([(0, 2400), (3500, 5000)], 6000)
+    v1, v2 = snap_edges(t, env)
+    assert v1.segments[-1] == (2, 1000, 2400)  # held to where the voice stops
+    assert v2.segments[0] == (1, 3500, 4000)  # starts where the voice does
+    assert v2.segments[1] == (2, 4000, 5000)
+    same = _env([(0, 1800), (3000, 5000)], 6000)  # timings that match the audio are kept as they are
+    assert all(a is b for a, b in zip(snap_edges(t, same), t))
+    assert snap_edges(t, [1.0] * 300)[0] is t[0]  # no pause at all (Dussary): nothing to snap to
+
+
+def test_verse_can_change_when_its_last_word_ends():
+    t = [vt("1:1", 0, 3000, [(1, 0, 1000), (2, 1000, 1800)]), vt("1:2", 3000, 6000, [(1, 3200, 5000)])]
+    clips = change_at_last_word(build_clips(t, [2, 1], 0))
+    assert [c.start for c in clips] == [0, 1800]
+    assert state_at(clips, 1900) == State(1, None, 0)  # next verse shown, nothing lit until its first word
+    assert state_at(build_clips(t, [2, 1], 0), 1900).verse == 0  # by default it waits for the verse timing
