@@ -103,3 +103,18 @@ def test_reveal_style_shows_nothing_before_the_first_word(app):
         before = r.render(State(0, None, 0, 0))  # what the page shows while it fades in, before its first word
         assert bytes(before.constBits()) == bytes(empty.constBits()), style  # the whole verse must not flash
         assert bytes(r.render(State(0, 1, 1)).constBits()) != bytes(empty.constBits())
+
+
+@pytest.mark.slow_network
+def test_a_long_verse_keeps_its_sign_and_shares_its_translation_across_pages(app):
+    c = QuranClient()
+    font = FONTS["QPC Hafs"]
+    verse = c.verses(2, font.text_field, 20)[281:282]  # 2:282, the longest verse, with Sahih International
+    r = TextRenderer(1080, 1080, verse, font, RenderOptions(THEMES["Classic"], split="verse", translation=True))
+    pages, n = r.pages(0), len(r.words[0])
+    assert len(pages) > 1  # too tall for one page even at the minimum size
+    texts = [p.translation for p in pages]
+    assert all(texts) and len(set(texts)) == len(texts)  # each page has its own share, not a copy of the whole
+    assert " ".join(texts) == verse[0].translation
+    sign = [line for p in pages for line in p.lines if n in line]
+    assert len(sign) == 1 and len(sign[0]) > 1  # the verse-end sign sits beside the last word

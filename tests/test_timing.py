@@ -84,3 +84,17 @@ def test_verse_can_change_when_its_last_word_ends():
     assert [c.start for c in clips] == [0, 1800]
     assert state_at(clips, 1900) == State(1, None, 0)  # next verse shown, nothing lit until its first word
     assert state_at(build_clips(t, [2, 1], 0), 1900).verse == 0  # by default it waits for the verse timing
+
+
+def test_verse_end_sign_never_starts_a_line():
+    from quran_video.core.layout import wrap
+    assert wrap([40, 40, 10], 5, 90) == [[0, 1], [2]]  # as an ordinary word, the sign wraps alone
+    assert wrap([40, 40, 10], 5, 90, glue_last=True) == [[0], [1, 2]]  # it takes the last word with it
+    assert wrap([40, 10], 5, 90, glue_last=True) == [[0, 1]]
+
+
+def test_translation_is_never_cut_inside_brackets():
+    from quran_video.core.translation import split_translation
+    t = "And they say, [i.e., the disbelievers, when they are told], we will not believe. Indeed, He is Knowing."
+    a, b = split_translation(t, [1, 1])
+    assert a.count("[") == a.count("]") and f"{a} {b}" == t

@@ -16,7 +16,12 @@ class Layout:
     fits: bool
 
 
-def wrap(widths: list[float], space: float, max_w: float) -> list[list[int]]:
+def wrap(widths: list[float], space: float, max_w: float, glue_last: bool = False) -> list[list[int]]:
+    """With glue_last, the last item (the verse-end sign) always stays on the line of the one before it."""
+    if glue_last and len(widths) > 1:
+        lines = wrap([*widths[:-2], widths[-2] + space + widths[-1]], space, max_w)
+        lines[-1].append(len(widths) - 1)
+        return lines
     lines, cur, cur_w = [], [], 0.0
     for i, w in enumerate(widths):
         need = w if not cur else cur_w + space + w
@@ -37,15 +42,15 @@ def make_font(family: str, px: int) -> QFont:
 
 
 def fit(words: list[str], families: list[str], box_w: float, box_h: float, max_px: int, min_px: int,
-        line_spacing: float) -> Layout:
-    """families[0] sets the line metrics; each word is measured in its own family."""
+        line_spacing: float, glue_last: bool = False) -> Layout:
+    """families[0] sets the line metrics; each word is measured in its own family. See wrap for glue_last."""
     px = max_px
     while True:
         fonts = [make_font(f, px) for f in families]
         fm = QFontMetricsF(fonts[0])
         widths = [QFontMetricsF(f).horizontalAdvance(w) for f, w in zip(fonts, words)]
         space = max(fm.horizontalAdvance(" "), px * 0.25)  # some fonts have a very narrow space
-        lines = wrap(widths, space, box_w)
+        lines = wrap(widths, space, box_w, glue_last)
         line_h = fm.lineSpacing() * line_spacing  # fraction of the font's own line height
         fits = len(lines) * line_h <= box_h
         if fits or px <= min_px:

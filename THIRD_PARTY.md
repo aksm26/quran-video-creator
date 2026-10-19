@@ -20,7 +20,7 @@ The fonts are not covered by the GPL. Do not sell them or modify `QPCHafs.ttf`.
 | File | Source | Licence |
 |---|---|---|
 | `icons/translate.svg` | [Bootstrap Icons](https://icons.getbootstrap.com) | MIT (`icons/LICENSE-bootstrap-icons.txt`) |
-| `app.svg`, `app.png`, `check*.svg`, `down.svg` | Made for this project | GPL-3.0 |
+| `app.png`, `check*.svg`, `down.svg` | Made for this project | GPL-3.0 |
 
 ## Data
 
