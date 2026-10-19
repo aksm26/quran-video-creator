@@ -6,6 +6,7 @@ part ends in the Arabic (by share of letters). Falls back to the nearest word if
 import unicodedata
 
 PUNCT = tuple(",;:.!?،؛؟、。，；：！？—)]”’»\"'")
+OPEN, CLOSE = "([{（【", ")]}）】"  # brackets only: quotes can span most of a verse
 
 
 def letter_weight(arabic: str) -> int:
@@ -19,6 +20,9 @@ def split_translation(text: str, weights: list[int]) -> list[str]:
     tokens = text.split() if spaced else list(text.strip())
     if n <= 1 or len(tokens) < n:
         return [text] + [""] * (n - 1) if n else []
+    depth = [0]  # brackets still open after the first i tokens: never cut inside "[i.e., ...]" or "(...)"
+    for t in tokens:
+        depth.append(depth[-1] + sum(t.count(c) for c in OPEN) - sum(t.count(c) for c in CLOSE))
     total, acc, cuts = sum(weights), 0, []
     for k in range(n - 1):
         acc += weights[k]
@@ -26,8 +30,9 @@ def split_translation(text: str, weights: list[int]) -> list[str]:
         hi = len(tokens) - (n - 1 - k)
         want = min(max(round(acc / total * len(tokens)), lo), hi)
         window = max(3, round(len(tokens) * 0.2))
-        punct = [i for i in range(lo, hi + 1) if tokens[i - 1].endswith(PUNCT) and abs(i - want) <= window]
-        cuts.append(min(punct, key=lambda i: abs(i - want)) if punct else want)
+        free = [i for i in range(lo, hi + 1) if depth[i] <= 0] or [want]
+        punct = [i for i in free if tokens[i - 1].endswith(PUNCT) and abs(i - want) <= window]
+        cuts.append(min(punct or free, key=lambda i: abs(i - want)))
     sep = " " if spaced else ""
     bounds = [0, *cuts, len(tokens)]
     return [sep.join(tokens[a:b]) for a, b in zip(bounds, bounds[1:])]

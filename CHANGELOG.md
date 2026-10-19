@@ -1,5 +1,21 @@
 # Changelog
 
+## 1.2.0 (19 October 2026)
+
+- The first word of a verse no longer lights up in the silence before it is recited, and the last word stays lit
+  until the reciter stops holding it. Most noticeable for Muhammad Siddiq al-Minshawi, Mahmoud Khaleel Al-Husary
+  and Abdul Basit Abdul Samad, whose first words lit up about half a second early.
+- New choice under Recitation: the next verse appears when the verse ends (as before) or as soon as the last word
+  ends. The ⓘ next to it explains that the timings can contain errors. Also `--verse-change` on the command line.
+  This choice (and the credits note below) is in English in every app language until it is translated.
+- The verse number always stays on the line of the verse's last word; before, it sometimes wrapped onto a line of
+  its own.
+- When a verse is too long for one screen, each screen shows the translation of its own words, instead of the
+  whole translation repeated. Translations are never cut inside a [bracketed] insertion.
+- New app icon.
+- An ⓘ next to Export says the Quran Foundation credits (the `.credits.txt` file saved with each video) must be
+  put in the post's description.
+
 ## 1.1.2 (18 October 2026)
 
 - Word highlighting follows the voice for reciters whose word timing doesn't match their audio file:

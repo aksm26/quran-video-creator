@@ -211,10 +211,13 @@ def test_quality_and_widths_reach_the_job(win):
     win.highlight.setCurrentIndex(win.highlight.findData("keep"))
     win.hl_fade.setChecked(False)
     win.bg_end.setCurrentIndex(win.bg_end.findData("freeze"))
+    win.verse_change.setCurrentIndex(win.verse_change.findData("last_word"))
     job = win._job("9:16")
     assert job.quality == "Very low" and abs(job.text_width - 0.95) < 1e-9 and abs(job.translation_width - 0.70) < 1e-9
     assert abs(job.name_scale - 1.5) < 1e-9 and job.highlight == "keep" and not job.highlight_fade
-    assert job.bg_end == "freeze"
+    assert job.bg_end == "freeze" and job.verse_change == "last_word"
+    assert win.verse_change.toolTip()  # the hint says why the choice exists: the timings may have errors
+    assert "credits" in win.export_btn.toolTip()  # posting the Quran Foundation credits is required
 
 
 def test_custom_themes_can_be_saved_and_deleted(win):

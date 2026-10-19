@@ -160,17 +160,21 @@ class TextRenderer:
             lay = fit([shown[i] for i in chunk],
                       [self.marker_family if i == len(words) else self.family for i in chunk],
                       box_w, box_h, int(self.short * 0.075 * self.opts.text_width / DEFAULT_TEXT_WIDTH),
-                      int(self.short * 0.035), self.opts.line_spacing)
+                      int(self.short * 0.035), self.opts.line_spacing,
+                      glue_last=len(chunk) > 1 and chunk[-1] == len(words))
             widths = {g: lay.widths[n] for n, g in enumerate(chunk)}
             fonts = {g: lay.fonts[n] for n, g in enumerate(chunk)}
             lines = [[chunk[n] for n in line] for line in lay.lines]
-            tf, th = self._fit_translation(piece) if piece else (None, 0.0)
-            # still too tall at the minimum size: paginate by lines
+            # still too tall at the minimum size: paginate by lines, and the translation with it
             per = len(lines) if lay.fits else max(1, int(box_h // lay.line_h))
-            for k in range(0, len(lines), per):
-                part = lines[k:k + per]
+            parts = [lines[k:k + per] for k in range(0, len(lines), per)]
+            texts = [piece] if len(parts) == 1 or not piece else split_translation(
+                piece, [letter_weight("".join(words[g] for line in part for g in line if g < len(words)))
+                        for part in parts])
+            for part, text in zip(parts, texts):
+                tf, th = self._fit_translation(text) if text else (None, 0.0)
                 out.append(Page(frozenset(g for line in part for g in line), part, widths, fonts, lay,
-                                piece, tf, th))
+                                text, tf, th))
         self._pages[verse] = out
         return out
 

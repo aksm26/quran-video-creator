@@ -25,8 +25,8 @@ from ..config.quality import DEFAULT_QUALITY, QUALITIES
 from ..config.stops import DEFAULT_STOPS, STOPS, supported
 from ..config.themes import DEFAULT_THEME, THEMES, add_custom, custom_themes, is_builtin, make_custom
 from ..config.translations import BY_KEY, TRANSLATIONS, key_for_id
-from ..core.export import (Cancelled, ExportJob, VideoInfo, credits, estimate_bytes, estimate_seconds, export,
-                           preview_image, video_info)
+from ..core.export import (VERSE_CHANGE_LAST_WORD, VERSE_CHANGE_TIMING, Cancelled, ExportJob, VideoInfo, credits,
+                           estimate_bytes, estimate_seconds, export, preview_image, video_info)
 from ..core.ffmpeg import FFmpegError, is_video
 from ..core.render import DEFAULT_TEXT_WIDTH, SPLIT_PARTS, SPLIT_VERSE, load_font
 from ..core.timing import DataError, basmala_available
@@ -42,6 +42,11 @@ MEDIA_FILTER = "Images and videos (*.png *.jpg *.jpeg *.webp *.bmp *.mp4 *.mov *
 PANEL_WIDTH = 560
 TOAST_MS = 3000  # a warning flashes in the footer this long
 TIP_MS = 2500  # a tooltip stays this long
+CREDITS_HINT = ("Required: paste the credits from the .credits.txt file saved next to each video into your post's "
+                "description. They credit the Quran Foundation for the text, translation and recitation, as its "
+                "terms require. The app's name does not need to be mentioned.")
+VERSE_CHANGE_HINT = ("The recitation timings come from Quran.com and some contain errors, so a verse can change "
+                     "too early or too late. If the text changes at the wrong moment, try the other choice.")
 INDENT = 22  # how far a dependent control is indented under the one it depends on
 FADED = 0.35  # opacity of a control that does not apply right now
 ITEM_GAP, GROUP_GAP = 12, 8  # space between controls, and the extra space between groups in a card
@@ -173,6 +178,18 @@ class MainWindow(QMainWindow):
         lay.addWidget(self._text(caption, key))
         lay.addWidget(widget)
         return box
+
+    def _hint(self, key: str, beside: QWidget) -> QLabel:
+        """A small info icon that explains `beside` on hover. `beside` gets the same tooltip, for keyboard and
+        screen reader users."""
+        hint = QLabel()
+        hint.setCursor(Qt.CursorShape.WhatsThisCursor)
+        hint.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        hint.setFixedHeight(beside.sizeHint().height())  # centred on the control beside it
+        self._icons.append((hint, "info-circle"))
+        for widget in (hint, beside):
+            self._text(widget, key, "setToolTip")
+        return hint
 
     def _combo(self, items: list[tuple[str, object]]) -> NoWheelCombo:
         combo = NoWheelCombo()
@@ -338,6 +355,7 @@ class MainWindow(QMainWindow):
         row.addWidget(self.status)
         row.addWidget(self._text(self.cancel_btn, "Cancel"))
         row.addWidget(self.export_btn)
+        row.addWidget(self._hint(CREDITS_HINT, self.export_btn))
         f.addLayout(row)
         outer.addWidget(footer)
         self._apply_info()
@@ -377,6 +395,13 @@ class MainWindow(QMainWindow):
         self.basmala_dep = self._dep(self.basmala)
         self._set_on(self.basmala_dep, False)
         lay.addWidget(self.basmala_dep)
+        self.verse_change = self._combo([("When the verse ends", VERSE_CHANGE_TIMING),
+                                         ("When the last word ends", VERSE_CHANGE_LAST_WORD)])
+        hint = self._hint(VERSE_CHANGE_HINT, self.verse_change)  # hover for why: the timings can be wrong
+        row = QHBoxLayout()
+        row.addWidget(self._field("Next verse appears", self.verse_change), 1)
+        row.addWidget(hint, 0, Qt.AlignmentFlag.AlignBottom)
+        lay.addLayout(row)
         self.surah.currentIndexChanged.connect(self._surah_changed)
         self.from_v.valueChanged.connect(lambda v: self.to_v.setValue(max(v, self.to_v.value())))
         self.to_v.valueChanged.connect(lambda v: self.from_v.setValue(min(v, self.from_v.value())))
@@ -385,6 +410,7 @@ class MainWindow(QMainWindow):
             verse.valueChanged.connect(self._changed)
         self.reciter.currentIndexChanged.connect(self._changed)
         self.basmala.toggled.connect(self._changed)
+        self.verse_change.currentIndexChanged.connect(self._changed)
         form.addWidget(frame)
 
     def _build_arabic(self, form: QVBoxLayout) -> None:
@@ -829,7 +855,8 @@ class MainWindow(QMainWindow):
             text_width=self.text_width.value() / 100, translation_width=self.translation_width.value() / 100,
             name_scale=self.name_size.value() / 100, bg_end=self.bg_end.currentData(),
             background=Path(self.bg.text()) if self.bg.text() else None,
-            basmala=self.basmala.isChecked() and self.basmala.isEnabled(), stops=stops)
+            basmala=self.basmala.isChecked() and self.basmala.isEnabled(), stops=stops,
+            verse_change=self.verse_change.currentData())
 
     def _save(self) -> None:
         self.settings.setValue("state", json.dumps({
@@ -841,6 +868,7 @@ class MainWindow(QMainWindow):
             "stops": [n for n, c in self.stop_boxes.items() if c.isChecked()],
             "arabic": self.arabic.isChecked(), "name": self.surah_name.isChecked(),
             "name_size": self.name_size.value(), "basmala": self.basmala.isChecked(),
+            "verse_change": self.verse_change.currentData(),
             "translation": self.translation.currentData(), "translation_width": self.translation_width.value(),
             "theme": self.video_theme.currentData(), "text_width": self.text_width.value(),
             "dim": self.overlay.value(), "bg": self.bg.text(), "bg_end": self.bg_end.currentData(),
@@ -885,6 +913,7 @@ class MainWindow(QMainWindow):
         self.surah_name.setChecked(s.get("name", False))
         self.name_size.setValue(s.get("name_size", SLIDERS["name_size"][2]))
         self.basmala.setChecked(s.get("basmala", False))
+        pick(self.verse_change, s.get("verse_change", VERSE_CHANGE_TIMING))
         pick(self.translation, s.get("translation", self._default_translation()))
         self.translation_width.setValue(s.get("translation_width", SLIDERS["translation_width"][2]))
         self._fill_themes(s.get("theme", DEFAULT_THEME))
@@ -969,7 +998,8 @@ class MainWindow(QMainWindow):
     def eventFilter(self, obj, event) -> bool:
         """Tooltips disappear after TIP_MS instead of lingering while the pointer rests on the control."""
         if event.type() == QEvent.Type.ToolTip and isinstance(obj, QWidget) and obj.toolTip():
-            QToolTip.showText(event.globalPos(), obj.toolTip(), obj, QRect(), TIP_MS)
+            tip = obj.toolTip()  # a long one stays long enough to read
+            QToolTip.showText(event.globalPos(), tip, obj, QRect(), max(TIP_MS, 60 * len(tip)))
             return True
         return super().eventFilter(obj, event)
 
