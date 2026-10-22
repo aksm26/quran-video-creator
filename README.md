@@ -31,14 +31,17 @@ The Arabic lights up word by word with the reciter, with a translation under it.
 Nothing else to install. The app needs internet to download the Quran text, translations and recitations.
 All downloads: [Releases page](https://github.com/aksm26/quran-video-creator/releases/latest).
 
-## What's new in 1.1
+## What's new in 1.3
 
-- **Update notice.** The app tells you when a new version is out, with a button to the download page. It never
-  installs anything by itself, and you can turn the check off under **About**. On Linux, AppImage tools such as
-  AppImageLauncher or Gear Lever can now update the app in place.
-- **More reciters work with word-by-word highlight.** When a reciter's word timing doesn't match their audio for a
-  surah, the video is still made, with a warning that the highlight may be out of step (no warning when highlight
-  is off). Before, the export stopped.
+- **Exported videos now play in Fedora's stock video player.** The H.264 stream is Constrained Baseline instead of
+  High Profile, which is the profile Fedora's built-in OpenH264 decoder supports, and the audio is normalised to
+  44.1 kHz stereo.
+- **New app icon,** with clean transparent corners.
+- **Cleaner download names on every system:** `QVC.AppImage`, `QVC-Windows.zip` and `QVC-macOS.dmg` (the app inside
+  is `QVC` / `QVC.exe` / `QVC.app`). Saved settings and custom themes are kept. If you already have the Linux
+  AppImage, download the new `QVC.AppImage` once — the old file's built-in updater only knows the old name.
+- **Also new in 1.2:** choose when the next verse appears, word timing that follows the voice more closely, the
+  verse number kept with its last word, and ⓘ info icons that open their explanation when clicked.
 
 All changes: [CHANGELOG](CHANGELOG.md).
 
