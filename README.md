@@ -6,9 +6,9 @@
 For any suggestions, bugs found, and other, please e-mail the following address: simplelogin-newsletter.equinox919@simplelogin.com
 The Arabic lights up word by word with the reciter, with a translation under it. Free, no account, no watermark.
 
-<a href="https://github.com/aksm26/quran-video-creator/releases/latest/download/QuranVideoCreator-windows-x64.zip"><img alt="Download for Windows" src="https://img.shields.io/badge/Download-Windows-0078D4?style=for-the-badge&logo=windows&logoColor=white" height="44"></a>
-<a href="https://github.com/aksm26/quran-video-creator/releases/latest/download/QuranVideoCreator-macos-arm64.dmg"><img alt="Download for macOS" src="https://img.shields.io/badge/Download-macOS-111111?style=for-the-badge&logo=apple&logoColor=white" height="44"></a>
-<a href="https://github.com/aksm26/quran-video-creator/releases/latest/download/QuranVideoCreator-x86_64.AppImage"><img alt="Download for Linux" src="https://img.shields.io/badge/Download-Linux-E95420?style=for-the-badge&logo=linux&logoColor=white" height="44"></a>
+<a href="https://github.com/aksm26/quran-video-creator/releases/latest/download/QVC-Windows.zip"><img alt="Download for Windows" src="https://img.shields.io/badge/Download-Windows-0078D4?style=for-the-badge&logo=windows&logoColor=white" height="44"></a>
+<a href="https://github.com/aksm26/quran-video-creator/releases/latest/download/QVC-macOS.dmg"><img alt="Download for macOS" src="https://img.shields.io/badge/Download-macOS-111111?style=for-the-badge&logo=apple&logoColor=white" height="44"></a>
+<a href="https://github.com/aksm26/quran-video-creator/releases/latest/download/QVC.AppImage"><img alt="Download for Linux" src="https://img.shields.io/badge/Download-Linux-E95420?style=for-the-badge&logo=linux&logoColor=white" height="44"></a>
 
 <img src="docs/examples/al-ikhlas-9x16.gif" height="300" alt="Al-Ikhlas, 9:16 video with word-by-word highlight">&nbsp;
 <img src="docs/examples/al-kawthar-1x1-french.gif" height="300" alt="Al-Kawthar, square video with a French translation">
@@ -19,12 +19,12 @@ The Arabic lights up word by word with the reciter, with a translation under it.
 
 1. **Download** the file for your computer with a button above.
 2. **Open it** (first time only, because the app is free and not code-signed):
-   - **Windows:** unzip the file, then open `QuranVideoCreator.exe`. If a blue "Windows protected your PC" box
+   - **Windows:** unzip the file, then open `QVC.exe`. If a blue "Windows protected your PC" box
      appears, click **More info**, then **Run anyway**.
    - **macOS** (Apple Silicon: M1 or newer): open the `.dmg` and drag the app onto **Applications**. Open it once;
      when macOS refuses, go to **System Settings** > **Privacy & Security**, scroll down and click **Open Anyway**.
    - **Linux:** right-click the file > **Properties** > allow running as a program (or
-     `chmod +x QuranVideoCreator-x86_64.AppImage`), then double-click it.
+     `chmod +x QVC.AppImage`), then double-click it.
 3. **Make a video:** pick a reciter, a surah and the verses, then click **Export**. The video lands in your
    **Videos** folder, ready to upload.
 
@@ -93,6 +93,11 @@ takes a minute. Later starts are quick.
 On Linux, if the window does not open and the error mentions the Qt "xcb" plugin, install one system library:
 `sudo apt install libxcb-cursor0` (Debian, Ubuntu) or `sudo dnf install xcb-util-cursor` (Fedora).
 
+On Fedora, GNOME Videos may say it needs an "H.264 decoder" before it will play an exported video. That is Fedora's
+patent-free default, not a problem with the file (the app already exports the widely supported Constrained Baseline
+H.264). Install Fedora's own Cisco codec once and playback works:
+`sudo dnf install gstreamer1-plugin-openh264 mozilla-openh264`. VLC, mpv, browsers and phones play the videos as is.
+
 To add a Linux menu entry, edit `Exec=` in `packaging/quran-video-creator.desktop` to point at `run.sh`, then copy
 it to `~/.local/share/applications/`.
 
@@ -107,7 +112,7 @@ The same exports work without the window:
     .venv/bin/python main.py cli --help
 
 On Windows, use `.venv\Scripts\python` instead of `.venv/bin/python`. The built app has the same command line:
-`QuranVideoCreator cli 112 1 4 ...` (on macOS: `QuranVideoCreator.app/Contents/MacOS/QuranVideoCreator cli ...`).
+`QVC cli 112 1 4 ...` (on macOS: `QVC.app/Contents/MacOS/QVC cli ...`).
 The Windows build exports but prints nothing, so use the source install there to see help and progress.
 
 ## How the code works
@@ -144,7 +149,7 @@ The window (`ui/main_window.py`) and the command line (`cli.py`) both turn the u
     .venv/bin/python -m pytest -q tests                     # offline tests
     QVC_API_BASE=https://qvc-proxy.quranvideocreator.workers.dev .venv/bin/python -m pytest -q tests   # all tests
     node --test proxy/worker.test.mjs                       # proxy tests (Node.js 18+)
-    .venv/bin/pyinstaller packaging/quran_video.spec        # build dist/QuranVideoCreator for this OS
+    .venv/bin/pyinstaller packaging/quran_video.spec        # build dist/QVC for this OS
     packaging/build_appimage.sh                             # Linux: wrap it into an AppImage
 
 The live tests (marked `slow_network`) talk to the real API through the proxy, so they only run when `QVC_API_BASE`

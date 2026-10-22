@@ -29,9 +29,9 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - {os: ubuntu-22.04, asset: QuranVideoCreator-x86_64.AppImage}
-          - {os: windows-latest, asset: QuranVideoCreator-windows-x64.zip}
-          - {os: macos-14, asset: QuranVideoCreator-macos-arm64.dmg}  # Apple Silicon only
+          - {os: ubuntu-22.04, asset: QVC.AppImage}
+          - {os: windows-latest, asset: QVC-Windows.zip}
+          - {os: macos-14, asset: QVC-macOS.dmg}  # Apple Silicon only
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v5
@@ -45,19 +45,19 @@ jobs:
         shell: bash
         run: |
           case "$RUNNER_OS" in
-            Windows) exe=dist/QuranVideoCreator/QuranVideoCreator.exe ;;
-            macOS) exe=dist/QuranVideoCreator.app/Contents/MacOS/QuranVideoCreator ;;
-            *) exe=dist/QuranVideoCreator/QuranVideoCreator ;;
+            Windows) exe=dist/QVC/QVC.exe ;;
+            macOS) exe=dist/QVC.app/Contents/MacOS/QVC ;;
+            *) exe=dist/QVC/QVC ;;
           esac
           "$exe" cli 1 1 1 --quality "Very low" --out smoke
           ls smoke/*.mp4  # the Windows build prints nothing, so check the file
       - if: runner.os == 'Linux'
         run: packaging/build_appimage.sh
       - if: runner.os == 'Windows'
-        run: Compress-Archive -Path dist/QuranVideoCreator -DestinationPath dist/${{ matrix.asset }}
+        run: Compress-Archive -Path dist/QVC -DestinationPath dist/${{ matrix.asset }}
       - if: runner.os == 'macOS'  # an Applications link in the image, so the app can be dragged onto it
         run: |
-          mkdir dmg && cp -R dist/QuranVideoCreator.app dmg/ && ln -s /Applications dmg/Applications
+          mkdir dmg && cp -R dist/QVC.app dmg/ && ln -s /Applications dmg/Applications
           make_dmg() { hdiutil create -volname "Quran Video Creator" -srcfolder dmg -ov -format UDZO dist/${{ matrix.asset }}; }
           make_dmg || { sleep 10; make_dmg; }  # hdiutil sometimes fails with "Resource busy" on hosted runners
       - uses: actions/upload-artifact@v4
