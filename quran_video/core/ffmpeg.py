@@ -61,13 +61,7 @@ def build_cmd(exe: str, w: int, h: int, fps: int, audio: Path, a_start_ms: int, 
     Without `background`, the frames are complete (the theme colour is drawn in them) and are only encoded.
     With one, the frames are the text layer: the image or video is scaled and cropped to cover WxH and the
     text laid over it. A video shorter than the recitation is looped, or with `freeze` its last frame is
-    held. Only recitation audio is mapped, so a background video's own sound never reaches the output.
-
-    The video is Constrained Baseline H.264 with AAC stereo at 44.1 kHz. That is the one profile Fedora's
-    stock OpenH264 decoder (gstreamer1-plugin-openh264, used by GNOME Videos) plays, and it also plays
-    everywhere else; x264 would otherwise default to High Profile with B-frames, which Fedora refuses with
-    "H.264 (High Profile) decoder is required". Normalising the audio here covers recitations that are not
-    already 44.1 kHz stereo."""
+    held. Only recitation audio is mapped, so a background video's own sound never reaches the output."""
     lead_ms = lead.length_ms if lead else 0
     dur, total = f"{dur_ms / 1000:.3f}", f"{(dur_ms + lead_ms) / 1000:.3f}"
     if background is None:
@@ -100,9 +94,7 @@ def build_cmd(exe: str, w: int, h: int, fps: int, audio: Path, a_start_ms: int, 
         "-filter_complex", video_chain + audio_chain,
         "-map", "[v]", "-map", "[a]" if lead else f"{audio_in}:a",
         # Two encoder threads and short queues keep ffmpeg near 500 MB instead of 950 MB, at no cost in speed.
-        # Constrained Baseline (no B-frames, no CABAC) so the stock Fedora OpenH264 decoder can play it.
-        "-threads", "2", "-c:v", "libx264", "-profile:v", "baseline", "-preset", "veryfast", "-crf", str(crf),
-        "-c:a", "aac", "-b:a", f"{audio_kbps}k", "-ar", "44100", "-ac", "2", "-t", total,
-        "-movflags", "+faststart",
+        "-threads", "2", "-c:v", "libx264", "-preset", "veryfast", "-crf", str(crf),
+        "-c:a", "aac", "-b:a", f"{audio_kbps}k", "-t", total, "-movflags", "+faststart",
         "-f", "mp4", str(out),
     ]
