@@ -8,7 +8,7 @@ from PyInstaller.utils.hooks import collect_data_files
 ROOT = Path(SPECPATH).parent
 sys.path.insert(0, str(ROOT))
 from quran_video import __version__  # noqa: E402
-NAME = "QuranVideoCreator"
+NAME = "QVC"
 ICON = str(ROOT / "assets/ui/app.png")  # Pillow converts it to .ico / .icns
 
 a = Analysis(

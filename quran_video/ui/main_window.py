@@ -1153,6 +1153,8 @@ def run() -> int:
     app = QApplication(sys.argv)
     app.setApplicationName("Quran Video Creator")
     app.setApplicationVersion(__version__)
+    # Match the Linux menu entry (packaging/quran-video-creator.desktop) so Wayland desktops show its icon
+    app.setDesktopFileName("quran-video-creator")
     app.setWindowIcon(QIcon(f"{ASSETS}/app.png"))
     win = MainWindow()
     win.show()
