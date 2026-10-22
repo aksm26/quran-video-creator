@@ -1,0 +1,4 @@
+-r requirements.txt
+pytest>=8
+pyinstaller>=6.10
+pillow>=10  # lets PyInstaller turn assets/ui/app.png into .ico / .icns

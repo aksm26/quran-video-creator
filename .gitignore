@@ -1,0 +1,11 @@
+.venv
+venv
+.claude/
+__pycache__/
+.pytest_cache/
+build/
+dist/
+out/
+*.part
+proxy/.wrangler/
+.dev.vars

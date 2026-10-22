@@ -1,0 +1,84 @@
+# Push a tag like v1.0.0: tests run, then the app is built on each OS and attached to a GitHub Release.
+name: release
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read  # only the release job writes; test and build run third-party pip packages
+
+jobs:
+  test:
+    runs-on: ubuntu-22.04
+    env:
+      QT_QPA_PLATFORM: offscreen
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with: {python-version: "3.12"}
+      - run: sudo apt-get update && sudo apt-get install -y libegl1 libgl1 libxkbcommon0 libfontconfig1
+      - run: pip install -r requirements-dev.txt
+      - run: python -m pytest -q tests
+      - if: startsWith(github.ref, 'refs/tags/')  # tag v1.2.3 must match quran_video.__version__
+        run: python -c "import os, quran_video as q; t = os.environ['GITHUB_REF_NAME']; assert t == 'v' + q.__version__, f'tag {t} != v{q.__version__}'"
+
+  build:
+    needs: test
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {os: ubuntu-22.04, asset: QVC.AppImage}
+          - {os: windows-latest, asset: QVC-Windows.zip}
+          - {os: macos-14, asset: QVC-macOS.dmg}  # Apple Silicon only
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with: {python-version: "3.12"}
+      - if: runner.os == 'Linux'  # Qt's X11 libraries, bundled into the AppImage
+        run: sudo apt-get update && sudo apt-get install -y libegl1 libgl1 libxkbcommon0 libxkbcommon-x11-0 libfontconfig1 libxcb-cursor0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 libxcb-randr0 libxcb-render-util0 libxcb-shape0 libxcb-xinerama0 libfuse2 desktop-file-utils zsync
+      - run: pip install -r requirements-dev.txt
+      - run: pyinstaller --noconfirm packaging/quran_video.spec
+      - name: Smoke test the built app (export one verse through the frozen binary)
+        shell: bash
+        run: |
+          case "$RUNNER_OS" in
+            Windows) exe=dist/QVC/QVC.exe ;;
+            macOS) exe=dist/QVC.app/Contents/MacOS/QVC ;;
+            *) exe=dist/QVC/QVC ;;
+          esac
+          "$exe" cli 1 1 1 --quality "Very low" --out smoke
+          ls smoke/*.mp4  # the Windows build prints nothing, so check the file
+      - if: runner.os == 'Linux'
+        run: packaging/build_appimage.sh
+      - if: runner.os == 'Windows'
+        run: Compress-Archive -Path dist/QVC -DestinationPath dist/${{ matrix.asset }}
+      - if: runner.os == 'macOS'  # an Applications link in the image, so the app can be dragged onto it
+        run: |
+          mkdir dmg && cp -R dist/QVC.app dmg/ && ln -s /Applications dmg/Applications
+          make_dmg() { hdiutil create -volname "Quran Video Creator" -srcfolder dmg -ov -format UDZO dist/${{ matrix.asset }}; }
+          make_dmg || { sleep 10; make_dmg; }  # hdiutil sometimes fails with "Resource busy" on hosted runners
+      - uses: actions/upload-artifact@v4
+        with: {name: "${{ matrix.asset }}", path: "dist/${{ matrix.asset }}*"}  # with the AppImage's .zsync
+
+  release:  # one job creates the Release, so the three builds never race to create it
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write  # create the Release and upload the builds
+    steps:
+      - uses: actions/download-artifact@v4
+        with: {path: dist, merge-multiple: true}
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*
+          body: |
+            What's new: [CHANGELOG](https://github.com/aksm26/quran-video-creator/blob/release-1.0/CHANGELOG.md).
+            **Pick your file under Assets below:** Windows `.zip`, macOS (Apple Silicon) `.dmg`, Linux `.AppImage`.
+            Nothing else to install. The builds are not code-signed, so the first start asks once: see
+            [Get started in 3 steps](https://github.com/aksm26/quran-video-creator#get-started-in-3-steps).
+            Every video comes with a `.credits.txt` file: put those credits in your caption (Quran Foundation terms).
+            FFmpeg (GPL-3.0) is bundled; its source is at https://ffmpeg.org/releases/ (see THIRD_PARTY.md).
