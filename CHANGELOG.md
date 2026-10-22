@@ -2,9 +2,6 @@
 
 ## 1.3.0 (22 October 2026)
 
-- Exported videos now play in Fedora's stock video player. The H.264 stream is Constrained Baseline instead of High
-  Profile, which is the profile Fedora's built-in OpenH264 decoder supports (GNOME Videos otherwise asks for an
-  "H.264 (High Profile) decoder"). The audio is always normalised to 44.1 kHz stereo as well.
 - New app icon, with clean transparent corners.
 - Cleaner file and bundle names on every system: `QVC.AppImage` on Linux, `QVC-Windows.zip` on Windows and
   `QVC-macOS.dmg` on macOS (the app inside is `QVC` / `QVC.exe` / `QVC.app`). Saved settings and custom themes are

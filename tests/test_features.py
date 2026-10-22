@@ -138,24 +138,6 @@ def test_video_background_loops_or_freezes(tmp_path):
                                             background=png, freeze=True))  # an image has no end
 
 
-def test_export_is_constrained_baseline_and_stereo(tmp_path):
-    """Fedora's stock OpenH264 decoder (GNOME Videos) plays only Constrained Baseline, so x264 must not default
-    to High Profile, and the audio must not keep a recitation's own low rate or mono layout."""
-    ff = ffmpeg_exe()
-    audio = tmp_path / "a.wav"
-    # 22.05 kHz mono, as some recitations are, to prove the output is resampled to 44.1 kHz stereo
-    subprocess.run([ff, "-y", "-loglevel", "error", "-f", "lavfi", "-i", "sine=d=2:r=22050", "-ac", "1", str(audio)],
-                   check=True)
-    out = tmp_path / "o.mp4"
-    cmd = build_cmd(ff, 64, 64, 10, audio, 0, 2000, out)
-    assert cmd[cmd.index("-profile:v") + 1] == "baseline"
-    assert cmd[cmd.index("-ar") + 1] == "44100" and cmd[cmd.index("-ac") + 1] == "2"
-    proc = subprocess.run(cmd, input=bytes(64 * 64 * 4 * 20), capture_output=True)  # 2 s of frames
-    assert proc.returncode == 0, proc.stderr[-300:]
-    info = subprocess.run([ff, "-hide_banner", "-i", str(out)], capture_output=True, text=True).stderr
-    assert "Constrained Baseline" in info and "22050 Hz" not in info and "44100 Hz" in info and "stereo" in info
-
-
 def test_media_seconds_and_freeze_really_encode(tmp_path):
     ff = ffmpeg_exe()
     clip, img = tmp_path / "c.mp4", tmp_path / "p.png"
