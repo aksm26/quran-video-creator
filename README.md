@@ -96,10 +96,17 @@ takes a minute. Later starts are quick.
 On Linux, if the window does not open and the error mentions the Qt "xcb" plugin, install one system library:
 `sudo apt install libxcb-cursor0` (Debian, Ubuntu) or `sudo dnf install xcb-util-cursor` (Fedora).
 
-On Fedora, GNOME Videos may say it needs an "H.264 decoder" before it will play an exported video. That is Fedora's
-patent-free default, not a problem with the file (the app already exports the widely supported Constrained Baseline
-H.264). Install Fedora's own Cisco codec once and playback works:
-`sudo dnf install gstreamer1-plugin-openh264 mozilla-openh264`. VLC, mpv, browsers and phones play the videos as is.
+On Fedora, an exported video may play with sound but no picture, with "H.264 decoder is required" (GNOME Videos) or
+"VLC could not decode the format h264" (VLC). This is Fedora's patent-free default, not a problem with the file: the
+app exports Constrained Baseline H.264, which every player and platform accepts. Fedora's `ffmpeg-free` simply has no
+H.264 decoder, and the Cisco `openh264` package covers only WebRTC (Firefox) and GStreamer, so it does not help VLC or
+mpv. To play the videos:
+
+- **VLC, mpv:** enable [RPM Fusion](https://rpmfusion.org/Configuration) and swap in the full ffmpeg once:
+  `sudo dnf swap ffmpeg-free ffmpeg --allowerasing`. Or use the Flathub build of VLC, which bundles its own codecs.
+- **GNOME Videos:** `sudo dnf install gstreamer1-plugin-openh264 mozilla-openh264`.
+
+Windows, macOS, phones and social platforms play the videos as they are.
 
 To add a Linux menu entry, edit `Exec=` in `packaging/quran-video-creator.desktop` to point at `run.sh`, then copy
 it to `~/.local/share/applications/`.
