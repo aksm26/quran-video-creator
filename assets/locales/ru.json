@@ -176,7 +176,8 @@
     "Use at most {n} background videos.": "Используйте не больше {n} фоновых видео.",
     "Add new batch": "Добавить фрагмент",
     "Add translation batch": "Добавить фрагмент перевода",
-    "Choose a batch or add a new one.": "Выберите фрагмент или добавьте новый."
+    "Choose a batch or add a new one.": "Выберите фрагмент или добавьте новый.",
+    "Auto mode: watch the video before uploading it. The timings can contain errors, so a word can light up or a verse can change at the wrong moment.": "Автоматический режим: посмотрите видео перед загрузкой. Тайминги могут содержать ошибки, поэтому слово может подсветиться или аят смениться не вовремя."
   },
   "reciters": {
     "97": "Ясир ад-Даусари",

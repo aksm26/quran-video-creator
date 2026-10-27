@@ -46,6 +46,8 @@ TIP_MS = 2500  # a tooltip stays this long
 CREDITS_HINT = ("Required: paste the credits from the .credits.txt file saved next to each video into your post's "
                 "description. They credit the Quran Foundation for the text, translation and recitation, as its "
                 "terms require. The app's name does not need to be mentioned.")
+TIMING_HINT = ("Auto mode: watch the video before uploading it. The timings can contain errors, so a word can light "
+               "up or a verse can change at the wrong moment.")
 VERSE_CHANGE_HINT = ("The recitation timings come from Quran.com and some contain errors, so a verse can change "
                      "too early or too late. If the text changes at the wrong moment, try the other choice.")
 SETTINGS_VERSION = 8  # bump when defaults change so older saved choices don't override them
@@ -138,7 +140,13 @@ class MainWindow(QMainWindow):
     def _field(self, key: str, widget: QWidget) -> QWidget:
         return self.kit.field(key, widget)
 
-    def _hint(self, key: str, beside: QWidget) -> QToolButton:
+    def _export_hint(self) -> str:
+        """The credits, and in auto mode a reminder that the app's timings may be wrong."""
+        if self.mode_bar.currentIndex() == 0:
+            return tr(TIMING_HINT) + "\n\n" + tr(CREDITS_HINT)
+        return tr(CREDITS_HINT)
+
+    def _hint(self, key, beside: QWidget) -> QToolButton:
         return self.kit.hint(key, beside)
 
     def _combo(self, items: list[tuple[str, object]]) -> NoWheelCombo:
@@ -294,7 +302,8 @@ class MainWindow(QMainWindow):
         row.addWidget(self.status)
         row.addWidget(self._text(self.cancel_btn, "Cancel"))
         row.addWidget(self.export_btn)
-        row.addWidget(self._hint(CREDITS_HINT, self.export_btn))
+        self.export_hint = self._hint(self._export_hint, self.export_btn)
+        row.addWidget(self.export_hint)
         f.addLayout(row)
         outer.addWidget(footer)
         self._apply_info()
@@ -701,6 +710,8 @@ class MainWindow(QMainWindow):
 
     def _mode_changed(self, i: int) -> None:
         self.pages.setCurrentIndex(i)
+        for widget in (self.export_hint, self.export_btn):
+            widget.setToolTip(self._export_hint())
         if not self._loading:
             self.settings.setValue("mode", i)
         self._apply_info()

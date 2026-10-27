@@ -176,6 +176,7 @@
     "Use at most {n} background videos.": "En fazla {n} arka plan videosu kullanın.",
     "Add new batch": "Yeni bölüm ekle",
     "Add translation batch": "Meal bölümü ekle",
-    "Choose a batch or add a new one.": "Bir bölüm seçin ya da yeni bir tane ekleyin."
+    "Choose a batch or add a new one.": "Bir bölüm seçin ya da yeni bir tane ekleyin.",
+    "Auto mode: watch the video before uploading it. The timings can contain errors, so a word can light up or a verse can change at the wrong moment.": "Otomatik mod: Yüklemeden önce videoyu izleyin. Zamanlamalarda hata olabilir; bir kelime yanlış anda vurgulanabilir veya ayet yanlış anda değişebilir."
   }
 }

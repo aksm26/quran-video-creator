@@ -176,7 +176,8 @@
     "Use at most {n} background videos.": "সর্বোচ্চ {n}টি ব্যাকগ্রাউন্ড ভিডিও ব্যবহার করুন।",
     "Add new batch": "নতুন অংশ যোগ করুন",
     "Add translation batch": "অনুবাদের অংশ যোগ করুন",
-    "Choose a batch or add a new one.": "একটি অংশ বেছে নিন বা নতুন যোগ করুন।"
+    "Choose a batch or add a new one.": "একটি অংশ বেছে নিন বা নতুন যোগ করুন।",
+    "Auto mode: watch the video before uploading it. The timings can contain errors, so a word can light up or a verse can change at the wrong moment.": "স্বয়ংক্রিয় মোড: আপলোড করার আগে ভিডিওটি দেখে নিন। সময়ে ভুল থাকতে পারে, তাই কোনো শব্দ ভুল মুহূর্তে আলোকিত হতে পারে বা আয়াত বদলে যেতে পারে।"
   },
   "reciters": {
     "97": "ইয়াসির আদ-দোসারি",

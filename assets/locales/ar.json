@@ -176,7 +176,8 @@
     "Use at most {n} background videos.": "استخدم {n} مقاطع فيديو خلفية على الأكثر.",
     "Add new batch": "إضافة مقطع جديد",
     "Add translation batch": "إضافة مقطع ترجمة",
-    "Choose a batch or add a new one.": "اختر مقطعًا أو أضف مقطعًا جديدًا."
+    "Choose a batch or add a new one.": "اختر مقطعًا أو أضف مقطعًا جديدًا.",
+    "Auto mode: watch the video before uploading it. The timings can contain errors, so a word can light up or a verse can change at the wrong moment.": "الوضع التلقائي: شاهد الفيديو قبل رفعه. قد تحتوي التوقيتات على أخطاء، فقد تُضاء كلمة أو تتغير آية في غير وقتها."
   },
   "reciters": {
     "97": "ياسر الدوسري",
