@@ -13,10 +13,10 @@ from dataclasses import replace
 from pathlib import Path
 
 from PySide6.QtCore import QSettings, Qt, QTimer, Signal
-from PySide6.QtGui import QCursor, QKeySequence, QShortcut
+from PySide6.QtGui import QCursor, QKeySequence, QPixmap, QShortcut
 from PySide6.QtWidgets import (QButtonGroup, QCheckBox, QFileDialog, QFrame, QHBoxLayout, QLabel, QLineEdit, QMenu,
-                               QMessageBox, QPushButton, QRadioButton, QScrollArea, QStackedWidget, QTabBar,
-                               QVBoxLayout, QWidget)
+                               QMessageBox, QPushButton, QRadioButton, QScrollArea, QSizePolicy, QStackedWidget,
+                               QTabBar, QVBoxLayout, QWidget)
 
 from .. import i18n
 from ..api.models import Chapter
@@ -29,13 +29,13 @@ from ..core.ffmpeg import has_audio, is_video, media_seconds
 from ..core.manual import (PAGES, PROJECT_SUFFIX, TRANS_ATTACHED, TRANS_TRACK, Batch, ManualJob, TokenRange,
                            TransBatch, check, file_end, first_page, from_json, label, mushaf_page, page_of,
                            spaced_translation, to_json, trans_text, verse_tokens, words_of)
-from ..core.manual_export import verse_source
+from ..core.manual_export import ManualPreview, verse_source
 from ..core.render import load_font
 from ..core.timing import DataError
 from ..i18n import tr
 from .batch_list import BACKGROUND, MOVE, REMOVE, TRANSLATION, BatchList, CardInfo
 from .form import (GROUP_GAP, MEDIA_FILTER, PANEL_WIDTH, SLIDERS, Form, clock, fill_themes, fill_translations,
-                   fmt_duration, ltr, relabel_themes, set_item_enabled)
+                   fmt_duration, ltr, relabel_themes)
 from .mushaf import Mark, MushafView, TokenView
 from .widgets import NoWheelCombo, VerseCombo
 
@@ -45,6 +45,8 @@ AUDIO_FILTER = ("Audio and video (*.mp3 *.m4a *.aac *.wav *.ogg *.opus *.flac *.
 STEPS = ("Recording", "Batches", "Translation", "Look", "Output")
 ARABIC, ATTACHED, TRACK = "arabic", "attached", "track"  # what the chosen card changes: its words, its translation
 PREVIEW_WORDS = 7  # how many words a card shows
+PREVIEW_WIDTH = 540  # the Preview view draws the video this wide
+UNTIMED_MS = 3000  # in the Preview view, a batch with no times yet is shown as if it lasted this long
 
 
 class ManualTab(QWidget):
@@ -70,6 +72,10 @@ class ManualTab(QWidget):
         self._page_seq = self._probe_seq = 0
         self._sources: dict = {}
         self._loading = True
+        self._preview: tuple[ManualPreview, list[int]] | None = None  # the preview, and its scenes with text
+        self._preview_seq = self._screen = 0
+        self._preview_timer = QTimer(self, singleShot=True, interval=300)
+        self._preview_timer.timeout.connect(self._refresh_preview)
         self._save_timer = QTimer(self, singleShot=True, interval=400)
         self._save_timer.timeout.connect(self.save)
         self._build()
@@ -248,17 +254,13 @@ class ManualTab(QWidget):
         box = QWidget()
         box.setLayout(row)
         lay.addWidget(kit.field("Themes", box))
-        self.reveal = kit.combo([("All words shown", "off"), ("Words appear as recited", "build"),
-                                 ("One word at a time", "single")])
-        lay.addWidget(kit.field("Words", self.reveal))
         self.highlight = kit.combo([("None", "none"), ("Word by word", "word"), ("Keep recited words", "keep")])
         lay.addWidget(kit.field("Highlight", self.highlight))
         self.hl_fade = kit.text(QCheckBox(), "Highlight fade")
         self.hl_fade.setChecked(True)
         self.fade_dep = kit.dep(self.hl_fade)
         lay.addWidget(self.fade_dep)
-        for w in (self.reveal, self.highlight):
-            w.currentIndexChanged.connect(self._changed)
+        self.highlight.currentIndexChanged.connect(self._changed)
         self.hl_fade.toggled.connect(self._changed)
         text_row, self.text_width = kit.slider("Text width", *SLIDERS["text_width"], self._changed)
         lay.addWidget(text_row)
@@ -332,13 +334,14 @@ class ManualTab(QWidget):
         top = QHBoxLayout()
         self.view_ar = kit.text(QPushButton(), "Arabic")
         self.view_tr = kit.text(QPushButton(), "Translation")
+        self.view_pv = kit.text(QPushButton(), "Preview")
         group = QButtonGroup(self)
-        for b in (self.view_ar, self.view_tr):
+        for b in (self.view_ar, self.view_tr, self.view_pv):
             b.setCheckable(True)
             group.addButton(b)
             top.addWidget(b)
         self.view_ar.setChecked(True)
-        self.view_tr.toggled.connect(self._view_changed)
+        group.buttonToggled.connect(lambda _b, on: self._view_changed() if on else None)
         top.addStretch()
         caption = kit.text(QLabel(), "Page")
         caption.setObjectName("muted")
@@ -378,8 +381,102 @@ class ManualTab(QWidget):
         self.stack = QStackedWidget()
         self.stack.addWidget(self.mushaf)
         self.stack.addWidget(tokens_scroll)
+        self.stack.addWidget(self._build_preview())
         right.addWidget(self.stack, 1)
         return right
+
+    def _build_preview(self) -> QWidget:
+        """The Preview view: the video as it will look, one screen at a time."""
+        page = QWidget()
+        lay = QVBoxLayout(page)
+        lay.setContentsMargins(0, 0, 0, 0)
+        nav = QHBoxLayout()
+        nav.addStretch()
+        self.prev_screen, self.next_screen = QPushButton(), QPushButton()
+        self.screen_label = QLabel()
+        self.screen_label.setObjectName("muted")
+        for button, key, step in ((self.prev_screen, "Previous screen", -1), (self.next_screen, "Next screen", 1)):
+            button.setFixedWidth(36)
+            button.clicked.connect(lambda _=False, step=step: self._show_screen(self._screen + step))
+            self.kit.text(button, key, "setToolTip")
+        self.kit.reg(lambda: (self.prev_screen.setText("›" if i18n.is_rtl() else "‹"),
+                              self.next_screen.setText("‹" if i18n.is_rtl() else "›")))
+        nav.addWidget(self.prev_screen)
+        nav.addWidget(self.screen_label)
+        nav.addWidget(self.next_screen)
+        nav.addStretch()
+        lay.addLayout(nav)
+        self.preview_img = QLabel()
+        self.preview_img.setObjectName("preview")
+        self.preview_img.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.preview_img.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Ignored)
+        lay.addWidget(self.preview_img, 1)
+        return page
+
+    # ---------------------------------------------------------------- the Preview view
+    def _preview_job(self) -> tuple[ManualJob, int]:
+        """The job as the Preview view shows it: a batch with no times yet gets a few seconds after the last timed
+        one, so every batch can be seen before Set times. Returns the job and the recording's length to use."""
+        job = self.job()
+        timed = [t for b in job.batches for t in (b.start_ms, b.end_ms) if t is not None]
+        t = max(timed, default=job.trim_start_ms) + 500
+        batches = []
+        for b in job.batches:
+            if b.start_ms is None:
+                b = replace(b, start_ms=t, end_ms=t + UNTIMED_MS)
+                t += UNTIMED_MS
+            batches.append(b)
+        return replace(job, batches=batches, trim_end_ms=None), max(self.audio_ms or 0, t + 500)
+
+    def _refresh_preview(self) -> None:
+        if not self.view_pv.isChecked():
+            return
+        self._preview_seq += 1
+        seq = self._preview_seq
+        if not self.batches:
+            self._preview = None
+            self.preview_img.setPixmap(QPixmap())
+            self.preview_img.setText(tr("Add at least one batch."))
+            self.screen_label.setText("")
+            return
+        job, audio_ms = self._preview_job()
+        verses_of = self._source(job.font, job.translation)
+
+        def work():
+            preview = ManualPreview.build(job, verses_of, audio_ms, PREVIEW_WIDTH)
+            return preview, [i for i, sc in enumerate(preview.scenes) if sc.cells or sc.translation]
+        self.start(work, lambda r: self._got_preview(seq, r))
+
+    def _got_preview(self, seq: int, result) -> None:
+        if seq != self._preview_seq:
+            return
+        self._preview = result
+        self._show_screen(self._screen)
+
+    def _show_screen(self, n: int) -> None:
+        if self._preview is None:
+            return
+        preview, shown = self._preview
+        if not shown:
+            return
+        self._screen = min(max(n, 0), len(shown) - 1)
+        scene = preview.scenes[shown[self._screen]]
+        img = preview.frame(preview.start_ms + (scene.start + scene.end) // 2)
+        self._preview_pixmap = QPixmap.fromImage(img)
+        self._fit_preview()
+        self.screen_label.setText(f"{self._screen + 1} / {len(shown)}")
+        self.prev_screen.setEnabled(self._screen > 0)
+        self.next_screen.setEnabled(self._screen < len(shown) - 1)
+
+    def _fit_preview(self) -> None:
+        px = getattr(self, "_preview_pixmap", None)
+        if px is not None and self.view_pv.isChecked():
+            self.preview_img.setPixmap(px.scaled(self.preview_img.size(), Qt.AspectRatioMode.KeepAspectRatio,
+                                                 Qt.TransformationMode.SmoothTransformation))
+
+    def resizeEvent(self, e) -> None:
+        super().resizeEvent(e)
+        self._fit_preview()
 
     # ---------------------------------------------------------------- text that follows the language
     def _relabel(self) -> None:
@@ -391,7 +488,9 @@ class ManualTab(QWidget):
 
     def _show_hint(self) -> None:
         view = self.tokens if self.view_tr.isChecked() else self.mushaf
-        if self.target is None:
+        if self.view_pv.isChecked():
+            text = ""
+        elif self.target is None:
             text = tr("Choose a batch or add a new one.")
         elif view.pending is not None:
             text = tr("Click the last word.")
@@ -556,6 +655,12 @@ class ManualTab(QWidget):
     # ---------------------------------------------------------------- choosing a batch and its words
     def _select(self, kind: str, k: int) -> None:
         """Choose what the next clicks on the page change. Choosing the chosen card again lets it go."""
+        if self.view_pv.isChecked() and kind == ARABIC and k < len(self.batches):
+            if self._preview is not None:  # the preview stays: it shows this batch's first screen
+                preview, shown = self._preview
+                self._show_screen(next((n for n, i in enumerate(shown) if preview.scenes[i].batch == k),
+                                       self._screen))
+            return
         if self.target == (kind, k):
             self._deselect()
             return
@@ -563,11 +668,11 @@ class ManualTab(QWidget):
         self.mushaf.clear_pending()
         self.tokens.clear_pending()
         words = kind == ARABIC
-        self.view_ar.blockSignals(True)
-        self.view_tr.blockSignals(True)
+        for b in (self.view_ar, self.view_tr, self.view_pv):
+            b.blockSignals(True)
         (self.view_ar if words else self.view_tr).setChecked(True)
-        self.view_ar.blockSignals(False)
-        self.view_tr.blockSignals(False)
+        for b in (self.view_ar, self.view_tr, self.view_pv):
+            b.blockSignals(False)
         self.stack.setCurrentIndex(0 if words else 1)
         self.mushaf.set_active(words)
         self.tokens.set_active(not words)
@@ -628,6 +733,12 @@ class ManualTab(QWidget):
     def _view_changed(self) -> None:
         """Switching between the Arabic and the translation keeps the same batch chosen, for its words or for its
         translation; a translation batch has no Arabic to change."""
+        if self.view_pv.isChecked():  # nothing to pick here: the video as it will look
+            self.stack.setCurrentIndex(2)
+            self._deselect()
+            self._refresh_preview()
+            self._show_hint()
+            return
         translation = self.view_tr.isChecked()
         self.stack.setCurrentIndex(1 if translation else 0)
         kind, k = self.target or ("", -1)
@@ -830,14 +941,13 @@ class ManualTab(QWidget):
         bg = Path(self.bg.text()) if self.bg.text() else None
         set_on(self.dim_dep, bg is not None or any(b.background for b in self.batches))
         set_on(self.bg_end_dep, is_video(bg) or any(is_video(b.background) for b in self.batches))
-        set_item_enabled(self.highlight, "keep", self.reveal.currentData() != "single")
-        set_item_enabled(self.reveal, "single", self.highlight.currentData() != "keep")
 
     def _changed(self, *_) -> None:
         if self._loading:
             return
         self._fill_lists()
         self._schedule_save()
+        self._preview_timer.start()
         self.changed.emit()
 
     def _schedule_save(self) -> None:
@@ -860,7 +970,7 @@ class ManualTab(QWidget):
             reciter_name=self.reciter_name.text(), name=self.file_name.text().strip(),
             trim_start_ms=self.trim[0], trim_end_ms=self.trim[1], font=self.font.currentText(),
             theme=self.video_theme.currentData(), highlight=self.highlight.currentData(),
-            highlight_fade=self.hl_fade.isChecked(), reveal=self.reveal.currentData(),
+            highlight_fade=self.hl_fade.isChecked(),
             surah_name=self.surah_name.isChecked(), name_scale=self.name_size.value() / 100,
             overlay=self.overlay.value() / 100, quality=self.quality.currentData(),
             text_width=self.text_width.value() / 100, translation_width=self.translation_width.value() / 100,
@@ -910,7 +1020,8 @@ class ManualTab(QWidget):
             return
         self.settings.setValue("manual", json.dumps({
             "version": MANUAL_VERSION, "project": to_json(self.job(), self.formats()),
-            "view": "translation" if self.view_tr.isChecked() else "arabic", "page": self.page_box.value(),
+            "view": "translation" if self.view_tr.isChecked() else "preview" if self.view_pv.isChecked()
+            else "arabic", "page": self.page_box.value(),
             "step": self.steps.currentIndex()}, ensure_ascii=False))
 
     def restore(self) -> None:
@@ -927,7 +1038,7 @@ class ManualTab(QWidget):
             except DataError:
                 pass
         self.page_box.setValue(int(data.get("page") or 1))
-        (self.view_tr if data.get("view") == "translation" else self.view_ar).setChecked(True)
+        {"translation": self.view_tr, "preview": self.view_pv}.get(data.get("view"), self.view_ar).setChecked(True)
         self.steps.setCurrentIndex(min(max(int(data.get("step") or 0), 0), len(STEPS) - 1))
         self._translation = self.translation.currentData()
         self._loading = False
@@ -953,7 +1064,6 @@ class ManualTab(QWidget):
         self.translation_width.setValue(round(job.translation_width * 100))
         pick(self.font, job.font if job.font in FONTS else DEFAULT_FONT, by_data=False)
         fill_themes(self.video_theme, job.theme)
-        pick(self.reveal, job.reveal)
         pick(self.highlight, job.highlight)
         self.hl_fade.setChecked(job.highlight_fade)
         self.text_width.setValue(round(job.text_width * 100))

@@ -403,3 +403,14 @@ def test_setting_times_keeps_the_batches_in_order_and_can_be_undone(tab, monkeyp
     win._set_trim("start")
     assert win.trim == (2000, None) and win.preview is not None and win.preview.frame(2500).width() == 300
     win.reject()
+
+
+def test_the_preview_shows_every_batch_before_any_times_are_set_and_there_is_no_words_choice(tab):
+    tab.batches = [Batch(WordRef(111, 1, 1), WordRef(111, 1, 4)), Batch(WordRef(112, 1, 1), WordRef(112, 1, 2))]
+    tab._changed()
+    tab.view_pv.setChecked(True)
+    assert tab.stack.currentIndex() == 2 and tab._preview is not None
+    assert tab.screen_label.text() == "1 / 2" and not tab.preview_img.pixmap().isNull()
+    tab.cards.chosen.emit(1)  # while previewing, a card shows its screen instead of being changed
+    assert tab.screen_label.text() == "2 / 2" and tab.target is None and not tab.mushaf.active
+    assert not hasattr(tab, "reveal")
