@@ -118,6 +118,7 @@ class TimingWindow(QDialog):
         self.word = (-1, 0)  # (batch, word) the next W lights
         self.preview: ManualPreview | None = None
         self._preview_seq = 0
+        self._closed = False  # answers from workers that come after closing are dropped
         self._cells: dict[int, tuple] = {}
         self._build(colors)
         self.clock = self._make_clock()
@@ -306,16 +307,20 @@ class TimingWindow(QDialog):
         self._rebuild.start()
 
     def _build_preview(self) -> None:
+        if self._closed:
+            return
         self._preview_seq += 1
         seq, job, verses_of, audio_ms = self._preview_seq, self._job(), self.verses_of, self.audio_ms
         self.start_task(lambda: ManualPreview.build(job, verses_of, audio_ms, PREVIEW_WIDTH),
                         lambda p: self._got_preview(seq, p))
 
     def _got_preview(self, seq: int, preview: ManualPreview) -> None:
-        if seq == self._preview_seq:
+        if seq == self._preview_seq and not self._closed:
             self.preview = preview
 
     def _got_envelope(self, env: list[float]) -> None:
+        if self._closed:
+            return
         for t in (self.overview, self.detail):
             t.set_envelope(env)
 
@@ -490,6 +495,8 @@ class TimingWindow(QDialog):
             self.clock.play()
 
     def done(self, result: int) -> None:
+        self._closed = True
+        self._rebuild.stop()
         self._tick.stop()
         self.clock.stop()
         super().done(result)

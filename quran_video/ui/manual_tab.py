@@ -363,6 +363,8 @@ class ManualTab(QWidget):
     def _show_length(self) -> None:
         if not self.audio.text():
             self.length.setText("")
+        elif not Path(self.audio.text()).is_file():
+            self.length.setText(tr("The audio file was not found."))
         elif not self.has_sound:
             self.length.setText(tr("This file has no sound."))
         elif self.audio_ms:
