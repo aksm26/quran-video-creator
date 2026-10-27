@@ -40,6 +40,7 @@ al-`Afasy), shared as videos with the credit the Developer Terms ask for (shown 
 | Library | Licence | Notes |
 |---|---|---|
 | [PySide6 / Qt](https://www.qt.io/qt-for-python) | LGPL-3.0 (text in `assets/LICENSE-LGPL-3.0.txt`) | The app is built as a folder (not one file), so the Qt libraries can be swapped |
+| [Qt Multimedia](https://doc.qt.io/qt-6/qtmultimedia-index.html) (from PySide6-Addons) | LGPL-3.0 | Plays the recording while times are set in manual mode. Its FFmpeg libraries ship with the PySide6-Addons wheel under the LGPL |
 | [requests](https://requests.readthedocs.io) (+ urllib3, idna, certifi, charset-normalizer) | Apache-2.0 / MIT / BSD / MPL-2.0 | |
 | [imageio-ffmpeg](https://github.com/imageio/imageio-ffmpeg) | BSD-2-Clause | |
 | FFmpeg 7.0.2 static build by [John Van Sickle](https://johnvansickle.com/ffmpeg/) (Linux) and the imageio-ffmpeg builds for Windows and macOS | **GPL-3.0** (built with `--enable-gpl --enable-version3`, libx264, libx265) | Source: [ffmpeg.org/releases](https://ffmpeg.org/releases/) (the version shown by `ffmpeg -version` in the app folder). This is why the whole app is GPL-3.0 |

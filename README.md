@@ -57,10 +57,31 @@ Quran data provided by Quran.Foundation (https://quran.foundation).</sub>
 - 20 reciters and 144 translations in 80 languages, or Arabic only
 - Highlight word by word, or let the words appear as they are recited
 - Several Quran fonts, colour themes, your own image or video as background
+- Manual mode: your own recitation, words picked on a mushaf page, times set while it plays
 - Cuts long verses at the stop signs, so each screen stays readable
 - The interface speaks 18 languages, Arabic and Urdu right to left
 
 <img src="docs/screenshot.png" alt="The app window: settings on the left, live preview on the right" width="820">
+
+## Manual mode
+
+The **Manual mode** tab makes a video from your own recording (an audio file, or a video whose sound is used).
+
+1. **Recording:** choose the file. Type the reciter's name if it should be in the credits.
+2. **Batches:** on the mushaf page on the right, click a batch's first word, then its last word. A batch can cross
+   verses and come from anywhere in the Quran, in any order: if the reciter goes back and repeats, pick those
+   words again. The list is the order they are shown in; one batch is on screen at a time.
+3. **Translation** (optional): with each batch (pick a batch, switch to Translation and click the first and last
+   word of its translation), or on its own times (each translation range is a batch of its own).
+4. **Look:** font, theme (or your own, with Custom), surah name, and a background for the whole video. Each batch
+   can also have its own picture or video.
+5. **Set times:** the recording plays. Press **S** when a batch starts (that ends the one before), **E** to end
+   one early and leave the screen empty, and drag any checkpoint on the bar to adjust it. With Highlight on,
+   press **W** as each word is recited; words you don't tap share the time by their length. **Ctrl+Z** undoes.
+6. **Export**, as in auto mode. Save the batches and times with **Save project** (a `.qvc` file).
+
+Every batch is shown exactly as the API returns it, and the credits name the verses used. A project file keeps
+only references and times, never the text: it is fetched again when the project is opened.
 
 ## Credits and rights (please read)
 
@@ -105,6 +126,7 @@ The same exports work without the window:
 
     .venv/bin/python main.py cli 112 1 4 --reciter 7 --format 9:16 --out out
     .venv/bin/python main.py cli --help
+    .venv/bin/python main.py cli manual my-video.qvc --format 9:16   # a project saved in the Manual mode tab
 
 On Windows, use `.venv\Scripts\python` instead of `.venv/bin/python`. The built app has the same command line:
 `QVC cli 112 1 4 ...` (on macOS: `QVC.app/Contents/MacOS/QVC cli ...`).
@@ -123,6 +145,13 @@ A video is made in four steps. Each step lives in its own module, and nothing un
 
 The window (`ui/main_window.py`) and the command line (`cli.py`) both turn the user's choices into an `ExportJob`
 (in `core/export.py`) and hand it to `export()`.
+
+Manual mode reuses the same steps 3 and 4. `core/manual.py` holds the batches and the hand-set times, and turns
+them into scenes: one stretch of the video with the same text on screen, pauses included.
+`core/manual_export.py` makes each scene a verse and a clip for the renderer, so `frame_plan`, the encode loop and
+the credits are auto mode's own. Per-batch backgrounds are laid over the base one by ffmpeg
+(`ffmpeg.build_manual_cmd`). In the window, `ui/manual_tab.py` holds the tab, `ui/mushaf.py` the page to pick words
+on, and `ui/timing_window.py` with `ui/timeline.py` the window where the times are set.
 
     main.py              starts the window, or the command line with `main.py cli ...`
     quran_video/

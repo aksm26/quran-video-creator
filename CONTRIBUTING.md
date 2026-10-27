@@ -43,6 +43,8 @@ files must be byte-identical:
   and add a translation to every file in `assets/locales/`. A test fails if one is missing or if a `{placeholder}`
   is lost. Keep interface texts short, and do not use em dashes in them.
 - **No widgets in `core/`.** The command line uses `core/` without a window.
+- **Project files and saved settings keep references, never text.** Manual mode stores words as `surah:verse:word`
+  and fetches the text again: nothing from the API may be kept longer than 7 days.
 - **Generated files are not edited by hand.** `quran_video/config/translations.py` and `language_names.py` are
   rewritten by `tools/generate_language_data.py`.
 - **Changed a default in the window?** Bump `SETTINGS_VERSION` in `ui/main_window.py`, so choices saved by an older
