@@ -6,7 +6,9 @@ from dataclasses import replace
 from pathlib import Path
 
 import pytest
+from PySide6.QtCore import QPoint, Qt
 from PySide6.QtGui import QColor
+from PySide6.QtTest import QTest
 
 from quran_video.api.models import Chapter, Verse, Word
 from quran_video.config.fonts import FONTS
@@ -283,3 +285,79 @@ def test_has_audio_and_per_batch_backgrounds_show_at_their_own_times(tmp_path):
                              "crop=2:2:32:32", "-f", "rawvideo", "-pix_fmt", "rgb24", "-"], capture_output=True).stdout
         return QColor(*px[:3]).name()
     assert [colour(t) for t in (0.5, 1.5, 2.2, 3.0, 3.8)] == ["#00fe00", "#fc0000", "#00fe00", "#0000fe", "#00fe00"]
+
+
+# ---- the window (offline: the fake mushaf above, tasks run at once)
+class FakeClient:
+    def verses(self, chapter, text_field="text_uthmani", translation=None):
+        return [replace(v, translation=v.translation if translation else "") for v in verses_of(chapter)]
+
+
+def run_now(fn, on_done, *_, **__):
+    on_done(fn())
+
+
+@pytest.fixture
+def tab(app, tmp_path):
+    from PySide6.QtCore import QSettings
+    from PySide6.QtWidgets import QWidget
+    from quran_video.ui.form import Form
+    from quran_video.ui.manual_tab import ManualTab
+    settings = QSettings(str(tmp_path / "s.ini"), QSettings.Format.IniFormat)
+    t = ManualTab(Form(QWidget(), [], []), FakeClient(), run_now, lambda: None, lambda name: None, settings)
+    t.resize(1300, 860)
+    t.set_chapters(CHAPTERS)
+    t.restore()
+    t.page_box.setValue(603)
+    t.grab()  # lays the page out, so its words can be clicked
+    return t
+
+
+def click_word(view, ref):
+    rect = next(r for r, x in view._items if x == ref)
+    QTest.mouseClick(view, Qt.MouseButton.LeftButton, pos=QPoint(round(rect.center().x()), round(rect.center().y())))
+
+
+def test_two_clicks_on_the_mushaf_make_a_batch_in_reading_order(tab):
+    assert tab.mushaf.page.number == 603
+    click_word(tab.mushaf, WordRef(111, 2, 3))
+    assert tab.mushaf.pending == WordRef(111, 2, 3) and tab.pick_hint.text() == "Click the last word."
+    click_word(tab.mushaf, WordRef(111, 1, 2))  # the last word picked first: still in reading order
+    assert [(str(b.first), str(b.last)) for b in tab.batches] == [("111:1:2", "111:2:3")]
+    assert tab.batch_list.count() == 1 and tab.batch_list.currentRow() == 0
+
+
+def test_the_manual_tab_keeps_its_batches_without_any_quran_text(tab):
+    tab.mushaf.click(WordRef(111, 1, 1))
+    tab.mushaf.click(WordRef(111, 1, 4))
+    tab.translation.setCurrentIndex(tab.translation.findData(DEFAULT_TRANSLATION))
+    tab.view_tr.setChecked(True)
+    tab.tokens.click(TokenRef(111, 1, 0))
+    tab.tokens.click(TokenRef(111, 1, 1))
+    assert tab.batches[0].translation == TokenRange(TokenRef(111, 1, 0), TokenRef(111, 1, 1))
+    tab.save()
+    saved = tab.settings.value("manual")
+    assert "111:1:1" in saved and not any("؀" <= c <= "ۿ" for c in saved) and "t111" not in saved
+    assert tab.problem().key == "Choose an audio or video file."  # Export stays off, the footer says why
+
+
+def test_setting_times_keeps_the_batches_in_order_and_can_be_undone(tab, monkeypatch, tmp_path):
+    from quran_video.ui import timing_window
+    monkeypatch.setattr(timing_window, "QMediaPlayer", None)  # no sound: the silent clock
+    monkeypatch.setattr(timing_window, "envelope", lambda path: [1.0] * 100)
+    batches = [Batch(WordRef(111, 1, 1), WordRef(111, 1, 4)), Batch(WordRef(111, 2, 1), WordRef(111, 2, 2))]
+    j = replace(job(batches=batches, highlight="word"), audio=tmp_path / "a.mp3")
+    win = timing_window.TimingWindow(tab, j, 10000, verses_of, run_now, tab.mushaf.colors)
+    assert isinstance(win.clock, timing_window.SilentClock) and "not available" in win.sound_note.text()
+    for t, key in [(500, win._mark_start), (900, win._tap_word), (1400, win._tap_word), (4000, win._mark_start),
+                   (6000, win._mark_end)]:
+        win.clock.set_position(t)
+        key()
+    assert [(b.start_ms, b.end_ms) for b in win.batches] == [(500, None), (4000, 6000)]
+    assert win.batches[0].word_ms == (900, 1400, None, None) and win.cursor == 2
+    win._undo()
+    assert win.batches[1].end_ms is None
+    win.clock.set_position(2000)
+    win._set_trim("start")
+    assert win.trim == (2000, None) and win.preview is not None and win.preview.frame(2500).width() == 300
+    win.reject()

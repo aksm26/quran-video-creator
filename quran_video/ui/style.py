@@ -75,6 +75,16 @@ QListWidget::item { min-height: 28px; padding: 0 8px; border-radius: 4px; }
 QListWidget::item:hover { background: @hover; }
 QListWidget::item:selected { background: @accent_soft; color: @text; }
 
+/* manual mode: the batch lists, the Arabic/Translation switch, the Auto/Manual tabs */
+QListWidget#batches { background: @field; border: 1px solid @line; border-radius: 6px; padding: 4px; }
+QListWidget#batches::item { min-height: 0; padding: 6px 8px; }
+QPushButton:checked { background: @accent_soft; border-color: @accent; }
+QTabBar#modes::tab { background: transparent; border: none; border-bottom: 2px solid transparent; padding: 8px 14px;
+                     font-weight: 600; color: @muted; }
+QTabBar#modes::tab:selected { color: @text; border-bottom: 2px solid @accent; }
+QTabBar#modes::tab:hover:!selected { color: @text; }
+QTabBar#modes::tab:disabled { color: @disabled; }
+
 /* checkboxes and radio buttons */
 QCheckBox, QRadioButton { spacing: 9px; }
 QCheckBox::indicator, QRadioButton::indicator { width: 16px; height: 16px; border: 1px solid @line;

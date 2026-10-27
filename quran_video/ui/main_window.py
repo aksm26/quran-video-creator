@@ -4,16 +4,15 @@ import json
 import sys
 import threading
 import time
-import unicodedata
 from pathlib import Path
 
 from PySide6.QtCore import (QEvent, QLibraryInfo, QLocale, QRect, QSettings, QSize, Qt, QThreadPool, QTimer,
                             QTranslator, QUrl)
 from PySide6.QtGui import QDesktopServices, QGuiApplication, QIcon, QPixmap
 from PySide6.QtWidgets import (QApplication, QButtonGroup, QCheckBox, QComboBox, QFileDialog, QFrame,
-                               QGraphicsOpacityEffect, QHBoxLayout, QLabel, QLineEdit, QMainWindow, QMessageBox,
-                               QProgressBar, QPushButton, QRadioButton, QScrollArea, QSizePolicy, QToolButton,
-                               QToolTip, QVBoxLayout, QWidget)
+                               QHBoxLayout, QLabel, QLineEdit, QMainWindow, QMessageBox,
+                               QProgressBar, QPushButton, QRadioButton, QScrollArea, QSizePolicy, QStackedWidget,
+                               QTabBar, QToolButton, QToolTip, QVBoxLayout, QWidget)
 
 from .. import __version__, i18n
 from ..api.client import DEFAULT_RECITER, ApiError, QuranClient
@@ -23,23 +22,25 @@ from ..config.language_names import language_name
 from ..config.presets import DEFAULT_FORMAT, FORMAT_NOTES, FORMATS
 from ..config.quality import DEFAULT_QUALITY, QUALITIES
 from ..config.stops import DEFAULT_STOPS, STOPS, supported
-from ..config.themes import DEFAULT_THEME, THEMES, add_custom, custom_themes, is_builtin, make_custom
-from ..config.translations import BY_KEY, TRANSLATIONS, key_for_id
+from ..config.themes import DEFAULT_THEME, add_custom, custom_themes, make_custom
+from ..config.translations import key_for_id
 from ..core.export import (VERSE_CHANGE_LAST_WORD, VERSE_CHANGE_TIMING, Cancelled, ExportJob, VideoInfo, credits,
                            estimate_bytes, estimate_seconds, export, preview_image, video_info)
 from ..core.ffmpeg import FFmpegError, is_video
-from ..core.render import DEFAULT_TEXT_WIDTH, SPLIT_PARTS, SPLIT_VERSE, load_font
+from ..core.manual_export import export_manual, manual_credits
+from ..core.render import SPLIT_PARTS, SPLIT_VERSE, load_font
 from ..core.timing import DataError, basmala_available
 from ..i18n import tr
 from .about import AboutDialog
-from .icons import pixmap, theme_swatch
+from .form import (GROUP_GAP, ITEM_GAP, MEDIA_FILTER, PANEL_WIDTH, SLIDERS, Form, fill_themes, fill_translations,
+                   fmt_duration, fmt_size, relabel_themes, set_item_enabled)
+from .icons import pixmap
+from .manual_tab import ManualTab
 from .style import ASSETS, PALETTES, resolve, stylesheet
 from .themes_dialog import ThemesDialog
 from .widgets import FAMILY_ROLE, SAMPLE_ROLE, FontDelegate, ListPopup, NoWheelCombo, NoWheelSlider, VerseCombo
 from .workers import Task
 
-MEDIA_FILTER = "Images and videos (*.png *.jpg *.jpeg *.webp *.bmp *.mp4 *.mov *.mkv *.webm *.avi);;All files (*)"
-PANEL_WIDTH = 560
 TOAST_MS = 3000  # a warning flashes in the footer this long
 TIP_MS = 2500  # a tooltip stays this long
 CREDITS_HINT = ("Required: paste the credits from the .credits.txt file saved next to each video into your post's "
@@ -47,20 +48,9 @@ CREDITS_HINT = ("Required: paste the credits from the .credits.txt file saved ne
                 "terms require. The app's name does not need to be mentioned.")
 VERSE_CHANGE_HINT = ("The recitation timings come from Quran.com and some contain errors, so a verse can change "
                      "too early or too late. If the text changes at the wrong moment, try the other choice.")
-INDENT = 22  # how far a dependent control is indented under the one it depends on
-FADED = 0.35  # opacity of a control that does not apply right now
-ITEM_GAP, GROUP_GAP = 12, 8  # space between controls, and the extra space between groups in a card
 SETTINGS_VERSION = 8  # bump when defaults change so older saved choices don't override them
 # Shown in the font list until the API's own text for each font arrives.
 FALLBACK_SAMPLE = "بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ"
-SLIDERS = {  # name: (minimum %, maximum %, default %)
-    "text_width": (60, 98, round(DEFAULT_TEXT_WIDTH * 100)),
-    "translation_width": (50, 98, round(DEFAULT_TEXT_WIDTH * 100)),
-    "name_size": (50, 200, 100),
-    # A chosen background is usually a busy photo or video, so the window dims it a little from the start
-    # (the command line's --overlay starts at 0).
-    "dim": (0, 80, 35),
-}
 
 
 def friendly(e: Exception) -> str:
@@ -73,29 +63,8 @@ def friendly(e: Exception) -> str:
     return tr("Unexpected error.") + f"\n\n{type(e).__name__}: {e}"
 
 
-def fmt_duration(seconds: float) -> str:
-    """'1 hour 2 minutes 5 seconds', leaving out any part that is zero."""
-    s = max(1, round(seconds))
-    h, rest = divmod(s, 3600)
-    m, sec = divmod(rest, 60)
-    parts = ((h, "hour"), (m, "minute"), (sec, "second"))
-    return " ".join(f"{n} {tr(unit if n == 1 else unit + 's')}" for n, unit in parts if n)
-
-
-def fmt_size(n: int) -> str:
-    if n >= 1e9:
-        return f"{n / 1e9:.2f} GB"
-    return f"{n / 1e6:.1f} MB" if n >= 1e6 else f"{max(1, round(n / 1e3))} KB"
-
-
 def layout_direction() -> Qt.LayoutDirection:
     return Qt.LayoutDirection.RightToLeft if i18n.is_rtl() else Qt.LayoutDirection.LeftToRight
-
-
-def set_item_enabled(combo: QComboBox, data, enabled: bool) -> None:
-    item = combo.model().item(combo.findData(data))
-    if item is not None:
-        item.setEnabled(enabled)
 
 
 class MainWindow(QMainWindow):
@@ -122,6 +91,7 @@ class MainWindow(QMainWindow):
         self._info_line = ("", "muted")  # what the footer line says when no warning is flashing
         self._toast_timer = QTimer(self, singleShot=True, interval=TOAST_MS)
         self._toast_timer.timeout.connect(lambda: self._set_info(*self._info_line))
+        self.kit = Form(self, self._relabels, self._icons)  # the building blocks below, shared with the manual tab
 
         self._load_custom_themes()
         i18n.set_language(str(self.settings.value("language", "en")))
@@ -158,78 +128,27 @@ class MainWindow(QMainWindow):
         self.update_btn.clicked.connect(lambda: QDesktopServices.openUrl(QUrl(url)))
         self.update_btn.show()
 
-    # ---------------------------------------------------------------- translated building blocks
+    # ---------------------------------------------------------------- translated building blocks (ui/form.py)
     def _reg(self, fn) -> None:
-        fn()
-        self._relabels.append(fn)
+        self.kit.reg(fn)
 
     def _text(self, widget, key: str, setter: str = "setText"):
-        self._reg(lambda: getattr(widget, setter)(tr(key)))
-        return widget
+        return self.kit.text(widget, key, setter)
 
     def _field(self, key: str, widget: QWidget) -> QWidget:
-        """A control with a small caption above it."""
-        box = QWidget()
-        lay = QVBoxLayout(box)
-        lay.setContentsMargins(0, 0, 0, 0)
-        lay.setSpacing(4)
-        caption = QLabel()
-        caption.setObjectName("muted")
-        lay.addWidget(self._text(caption, key))
-        lay.addWidget(widget)
-        return box
+        return self.kit.field(key, widget)
 
     def _hint(self, key: str, beside: QWidget) -> QToolButton:
-        """A small info button that explains `beside`: on hover, and in a message when clicked (a tooltip alone
-        is easy to miss and gone in seconds). `beside` gets the same tooltip, for keyboard and screen reader users."""
-        hint = QToolButton()
-        hint.setObjectName("hint")
-        hint.setIconSize(QSize(18, 18))
-        hint.setCursor(Qt.CursorShape.PointingHandCursor)
-        hint.setFixedHeight(beside.sizeHint().height())  # centred on the control beside it
-        hint.clicked.connect(lambda: QMessageBox.information(self, "", tr(key)))
-        self._icons.append((hint, "info-circle"))
-        for widget in (hint, beside):
-            self._text(widget, key, "setToolTip")
-        return hint
+        return self.kit.hint(key, beside)
 
     def _combo(self, items: list[tuple[str, object]]) -> NoWheelCombo:
-        combo = NoWheelCombo()
-        for key, data in items:
-            combo.addItem(tr(key), data)
-        self._relabels.append(lambda: [combo.setItemText(i, tr(k)) for i, (k, _) in enumerate(items)])
-        return combo
+        return self.kit.combo(items)
 
     def _slider(self, key: str, name: str) -> tuple[QWidget, NoWheelSlider]:
-        lo, hi, default = SLIDERS[name]
-        slider = NoWheelSlider(Qt.Orientation.Horizontal)
-        slider.setRange(lo, hi)
-        slider.setValue(default)
-        box = QWidget()
-        lay = QVBoxLayout(box)
-        lay.setContentsMargins(0, 0, 0, 0)
-        lay.setSpacing(4)
-        caption = QLabel()
-        caption.setObjectName("muted")
-        draw = lambda: caption.setText(f"{tr(key)}: {slider.value()}%")
-        slider.valueChanged.connect(lambda _: draw())
-        self._reg(draw)
-        slider.valueChanged.connect(self._changed)
-        lay.addWidget(caption)
-        lay.addWidget(slider)
-        return box, slider
+        return self.kit.slider(key, *SLIDERS[name], self._changed)
 
     def _card(self, key: str) -> tuple[QFrame, QVBoxLayout]:
-        frame = QFrame()
-        frame.setObjectName("card")
-        lay = QVBoxLayout(frame)
-        lay.setContentsMargins(20, 18, 20, 20)
-        lay.setSpacing(ITEM_GAP)
-        title = QLabel()
-        title.setObjectName("cardTitle")
-        lay.addWidget(self._text(title, key))
-        lay.addSpacing(2)
-        return frame, lay
+        return self.kit.card(key)
 
     # ---------------------------------------------------------------- building
     def _build(self) -> None:
@@ -261,7 +180,16 @@ class MainWindow(QMainWindow):
         self.update_btn = QPushButton()  # shown once a newer release is found
         self.update_btn.setObjectName("primary")
         self.update_btn.hide()
+        self.mode_bar = QTabBar()  # Auto mode: the app's recitations and timings; Manual mode: your own recording
+        self.mode_bar.setObjectName("modes")
+        self.mode_bar.setDrawBase(False)
+        self.mode_bar.setExpanding(False)
+        self.mode_bar.addTab("")
+        self.mode_bar.addTab("")
+        self._reg(lambda: (self.mode_bar.setTabText(0, tr("Auto mode")), self.mode_bar.setTabText(1, tr("Manual mode"))))
         h.addWidget(brand)
+        h.addSpacing(24)
+        h.addWidget(self.mode_bar, 0, Qt.AlignmentFlag.AlignBottom)
         h.addStretch()
         h.addWidget(self.update_btn)
         h.addWidget(self.lang_btn)
@@ -269,10 +197,19 @@ class MainWindow(QMainWindow):
         h.addWidget(self._text(about, "About"))
         outer.addWidget(header)
 
-        body = QHBoxLayout()
+        auto_page = QWidget()
+        body = QHBoxLayout(auto_page)
         body.setContentsMargins(24, 20, 24, 12)
         body.setSpacing(20)
-        outer.addLayout(body, 1)
+        self.manual = ManualTab(self.kit, self.client, self._start,
+                                lambda: ThemesDialog(self, self._manual_themes_changed).exec(),
+                                self._manual_themes_changed, self.settings)
+        self.manual.changed.connect(self._apply_info)
+        self.pages = QStackedWidget()
+        self.pages.addWidget(auto_page)
+        self.pages.addWidget(self.manual)
+        outer.addWidget(self.pages, 1)
+        self.mode_bar.currentChanged.connect(self._mode_changed)
 
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
@@ -365,20 +302,8 @@ class MainWindow(QMainWindow):
     # Panel order, top to bottom, follows how a video is made: what is recited, what is shown (Arabic, translation,
     # layout), how it looks, and how it is saved. A control that only matters when another one is set sits
     # directly under that one, indented, and fades when it does not apply (see _dep and _sync_enabled).
-    def _dep(self, widget: QWidget, level: int = 1) -> QWidget:
-        """Put `widget` under the control it depends on: indented, and faded by _set_on when it does not apply."""
-        box = QWidget()
-        lay = QHBoxLayout(box)
-        lay.setContentsMargins(0, 0, 0, 0)
-        lay.addSpacing(INDENT * level)  # a spacer, so right-to-left languages indent from the right
-        lay.addWidget(widget, 1)
-        box.setGraphicsEffect(QGraphicsOpacityEffect(box))
-        return box
-
-    @staticmethod
-    def _set_on(box: QWidget, on: bool) -> None:
-        box.setEnabled(on)
-        box.graphicsEffect().setOpacity(1.0 if on else FADED)
+    _dep = staticmethod(Form.dep)
+    _set_on = staticmethod(Form.set_on)
 
     def _build_recitation(self, form: QVBoxLayout) -> None:
         frame, lay = self._card("Recitation")
@@ -633,6 +558,9 @@ class MainWindow(QMainWindow):
             self.reciter.addItem(self._reciter_label(r), r.id)
         self._relabels.append(self._relabel_reciters)
         self._restore()
+        self.manual.set_chapters(self.chapters)
+        self.manual.restore()
+        self.mode_bar.setCurrentIndex(int(self.settings.value("mode", 0) or 0))
         self._loading = False
         self.ready = True
         self._surah_changed()
@@ -696,23 +624,10 @@ class MainWindow(QMainWindow):
                 pass
 
     def _fill_themes(self, select: str | None = None) -> None:
-        """The theme list: each entry shows its two colours side by side and its name in the app's language."""
-        current = select or self.video_theme.currentData()
-        self.video_theme.blockSignals(True)
-        self.video_theme.clear()
-        for name, theme in THEMES.items():
-            self.video_theme.addItem(QIcon(theme_swatch(theme.bg, theme.highlight)), self._theme_label(name), name)
-        keep = current if current in THEMES else DEFAULT_THEME
-        self.video_theme.setCurrentIndex(max(0, self.video_theme.findData(keep)))
-        self.video_theme.blockSignals(False)
-
-    @staticmethod
-    def _theme_label(name: str) -> str:
-        return name if not is_builtin(name) else tr(name)  # a custom theme keeps the name its owner gave it
+        fill_themes(self.video_theme, select)
 
     def _relabel_themes(self) -> None:
-        for i in range(self.video_theme.count()):
-            self.video_theme.setItemText(i, self._theme_label(self.video_theme.itemData(i)))
+        relabel_themes(self.video_theme)
 
     def _install_qt_translation(self, code: str) -> None:
         """Qt's own dialogs (colour picker, file chooser, OK/Cancel) in the app's language, where Qt has it."""
@@ -742,24 +657,7 @@ class MainWindow(QMainWindow):
         return f"{name} ({extra})" if extra else name
 
     def _fill_translations(self, select: str | None = None) -> None:
-        """Every translation Quran.com has, "None" first and then in the app language's alphabetical order."""
-        current = select or self.translation.currentData()
-        self.translation.blockSignals(True)
-        self.translation.clear()
-        def plain(text: str) -> str:  # sort "Éspañol" with "Espanol": no accents, no case
-            return "".join(c for c in unicodedata.normalize("NFKD", text) if not unicodedata.combining(c)).casefold()
-        keys = sorted((k for k in TRANSLATIONS if k != "None"), key=lambda k: plain(self._translation_label(k)))
-        for key in ["None", *keys]:
-            self.translation.addItem(self._translation_label(key), key)
-        self.translation.setCurrentIndex(max(0, self.translation.findData(current)))
-        self.translation.blockSignals(False)
-
-    @staticmethod
-    def _translation_label(key: str) -> str:
-        if key == "None":
-            return tr("None")
-        t = BY_KEY[key]
-        return f"{language_name(t.lang, i18n.current)} ({t.translator})"
+        fill_translations(self.translation, select)
 
     @staticmethod
     def _default_translation() -> str:
@@ -768,11 +666,22 @@ class MainWindow(QMainWindow):
     def _open_themes(self) -> None:
         ThemesDialog(self, self._themes_changed).exec()
 
-    def _themes_changed(self, name: str | None) -> None:
+    def _save_custom_themes(self) -> None:
         self.settings.setValue("custom_themes", json.dumps(
             [{"name": t.name, "bg": t.bg, "highlight": t.highlight} for t in custom_themes()]))
+
+    def _themes_changed(self, name: str | None) -> None:
+        """A theme was saved (its name, selected in this tab) or deleted (None)."""
+        self._save_custom_themes()
         self._fill_themes(name)
+        self.manual.refill_themes()
         self._changed()
+
+    def _manual_themes_changed(self, name: str | None) -> None:
+        self._save_custom_themes()
+        self._fill_themes()
+        self.manual.refill_themes(name)
+        self.manual._changed()
 
     def _set_language(self, code: str) -> None:
         """Translate the whole window, flip it for right-to-left languages, and pick that language's Quran
@@ -787,6 +696,15 @@ class MainWindow(QMainWindow):
         self._changed()
 
     # ---------------------------------------------------------------- state
+    def _manual_mode(self) -> bool:
+        return self.mode_bar.currentIndex() == 1
+
+    def _mode_changed(self, i: int) -> None:
+        self.pages.setCurrentIndex(i)
+        if not self._loading:
+            self.settings.setValue("mode", i)
+        self._apply_info()
+
     def _chapter(self):
         return next((c for c in self.chapters if c.id == self.surah.currentData()), None)
 
@@ -972,6 +890,9 @@ class MainWindow(QMainWindow):
         self._apply_info()
 
     def _apply_info(self) -> None:
+        if self._manual_mode():
+            self._apply_manual_info()
+            return
         info = self._info
         self.preview_title.setText(f"{tr('Preview')} · {fmt_duration(info.seconds)}" if info else tr("Preview"))
         if not info:
@@ -991,6 +912,28 @@ class MainWindow(QMainWindow):
             self._set_info(text, kind)
         self.export_btn.setEnabled(info.problem is None)
         self.export_btn.setText(tr("Export") if info.problem else f"{tr('Export')} · {fmt_size(size)}")
+
+    def _apply_manual_info(self) -> None:
+        """The footer for the manual tab: its length, how long the export takes, or why it can't be made yet."""
+        if self._busy:
+            return
+        seconds, problem = self.manual.seconds(), self.manual.problem()
+        job = self.manual.job()
+        formats = max(1, len(self.manual.formats()))
+        bg = job.background or next((b.background for b in job.batches if b.background), None)
+        if problem is not None or not seconds:
+            text, kind = (friendly(problem), "warn") if problem else ("", "muted")
+            self.export_btn.setEnabled(False)
+            self.export_btn.setText(tr("Export"))
+        else:
+            wait = estimate_seconds(seconds, bg, job.quality) * formats
+            text, kind = tr("Estimated time: {t}").format(t=fmt_duration(wait)), "muted"
+            self.export_btn.setEnabled(True)
+            size = estimate_bytes(seconds, bg, job.quality) * formats
+            self.export_btn.setText(f"{tr('Export')} · {fmt_size(size)}")
+        self._info_line = (text, kind)
+        if not self._toast_timer.isActive():
+            self._set_info(text, kind)
 
     def _toast(self, text: str) -> None:
         """A warning that shows in the footer for a few seconds, then gives way to the normal line."""
@@ -1048,6 +991,7 @@ class MainWindow(QMainWindow):
     def _apply_ui_theme(self, *_) -> None:
         mode = self.ui_theme.currentData() or "System"
         self.setStyleSheet(stylesheet(mode))
+        self.manual.set_colors(PALETTES[resolve(mode)])
         color = PALETTES[resolve(mode)]["muted"]
         for widget, name in self._icons:
             px = pixmap(name, color)
@@ -1062,11 +1006,16 @@ class MainWindow(QMainWindow):
         self._busy = busy
         self.form.setEnabled(not busy)
         self.screen_nav.setEnabled(not busy)
+        self.manual.set_busy(busy)
+        self.mode_bar.setEnabled(not busy)
         self.export_btn.setVisible(not busy)
         self.cancel_btn.setVisible(busy)
         self.progress.setValue(0)
 
     def _export(self) -> None:
+        if self._manual_mode():
+            self._export_manual()
+            return
         if not self._info:  # the length is not known yet, so there is no size or time to work with
             return
         formats = [f for f, c in self.fmt_boxes.items() if c.isChecked()]
@@ -1114,6 +1063,45 @@ class MainWindow(QMainWindow):
 
         self._start(run, self._export_done, tr("Exporting…"), True, self._on_export_progress)
 
+    def _export_manual(self) -> None:
+        jobs, seconds = self.manual.jobs(), self.manual.seconds()
+        if not jobs:
+            QMessageBox.information(self, tr("Output"), tr("Tick at least one format."))
+            return
+        if self.manual.problem() is not None or not seconds:
+            return
+        try:
+            jobs[0].out_dir.mkdir(parents=True, exist_ok=True)
+        except OSError as e:
+            QMessageBox.warning(self, tr("Output"), tr("Can't use that folder.") + f"\n\n{e}")
+            return
+        self._cancel.clear()
+        self._set_busy(True)
+        bg = jobs[0].background or next((b.background for b in jobs[0].batches if b.background), None)
+        total = sum(estimate_bytes(seconds, bg, job.quality) for job in jobs)
+        started = time.monotonic()
+
+        def run(progress):
+            paths, done, warnings = [], 0, []
+            for i, job in enumerate(jobs):
+                part = job.out_dir / (job.filename + ".part")
+
+                def report(f, i=i, part=part, done=done):
+                    total_f = (i + f) / len(jobs)
+                    try:
+                        written = done + part.stat().st_size
+                    except OSError:
+                        written = done
+                    left = (time.monotonic() - started) * (1 - total_f) / total_f if total_f > 0.02 else None
+                    eta = tr("{t} left").format(t=fmt_duration(left)) if left is not None else ""
+                    progress(total_f, f"{fmt_size(written)} / {fmt_size(max(total, written))}\n{eta}")
+
+                paths.append(export_manual(job, self.client, report, self._cancel.is_set, warnings.append))
+                done += paths[-1].stat().st_size
+            return paths, warnings[:1], manual_credits(jobs[0])
+
+        self._start(run, self._export_done, tr("Exporting…"), True, self._on_export_progress)
+
     def _on_export_progress(self, f: float, text: str) -> None:
         status, eta = text.split("\n", 1)
         self.progress.setValue(int(f * 1000))
@@ -1124,20 +1112,21 @@ class MainWindow(QMainWindow):
 
     def _export_done(self, result) -> None:
         paths, warnings, caption = result
+        folder = str(paths[0].parent) if paths else self.out_dir.text()
         self._set_busy(False)
         if paths:
             QApplication.clipboard().setText(caption)  # the credits only: a timing note stays in the file
         self.status.setText("")
         self._apply_info()
         box = QMessageBox(QMessageBox.Icon.Warning if warnings else QMessageBox.Icon.Information, tr("Done"),
-                          tr("Saved {n} video(s) to").format(n=len(paths)) + f"\n{self.out_dir.text()}\n\n"
+                          tr("Saved {n} video(s) to").format(n=len(paths)) + f"\n{folder}\n\n"
                           + tr("Credits for the caption were saved next to each video and copied to the clipboard.")
                           + "".join(f"\n\n{friendly(w)}" for w in warnings),
                           QMessageBox.StandardButton.Ok, self)
         open_btn = box.addButton(tr("Open folder"), QMessageBox.ButtonRole.ActionRole)
         box.exec()
         if box.clickedButton() is open_btn:
-            QDesktopServices.openUrl(QUrl.fromLocalFile(self.out_dir.text()))
+            QDesktopServices.openUrl(QUrl.fromLocalFile(folder))
 
     def _failed_export(self, e: Exception) -> None:
         self._set_busy(False)
