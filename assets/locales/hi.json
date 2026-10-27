@@ -176,7 +176,8 @@
     "Use at most {n} background videos.": "अधिकतम {n} पृष्ठभूमि वीडियो इस्तेमाल करें।",
     "Add new batch": "नया खंड जोड़ें",
     "Add translation batch": "अनुवाद खंड जोड़ें",
-    "Choose a batch or add a new one.": "कोई खंड चुनें या नया जोड़ें।"
+    "Choose a batch or add a new one.": "कोई खंड चुनें या नया जोड़ें।",
+    "Auto mode: watch the video before uploading it. The timings can contain errors, so a word can light up or a verse can change at the wrong moment.": "ऑटो मोड: अपलोड करने से पहले वीडियो देख लें। समय में गलतियाँ हो सकती हैं, इसलिए कोई शब्द गलत समय पर हाइलाइट हो सकता है या आयत बदल सकती है।"
   },
   "reciters": {
     "97": "यासिर अद-दोसरी",

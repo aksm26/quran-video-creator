@@ -176,7 +176,8 @@
     "Use at most {n} background videos.": "背景動画は {n} 本までにしてください。",
     "Add new batch": "区間を追加",
     "Add translation batch": "翻訳の区間を追加",
-    "Choose a batch or add a new one.": "区間を選ぶか、新しく追加してください。"
+    "Choose a batch or add a new one.": "区間を選ぶか、新しく追加してください。",
+    "Auto mode: watch the video before uploading it. The timings can contain errors, so a word can light up or a verse can change at the wrong moment.": "自動モード：アップロードする前に動画を確認してください。タイミングに誤りがあり、語が間違った瞬間に光ったり、節が切り替わったりすることがあります。"
   },
   "reciters": {
     "97": "ヤーシル・アッドーサリー",

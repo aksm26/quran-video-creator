@@ -176,7 +176,8 @@
     "Use at most {n} background videos.": "حداکثر {n} ویدیوی پس‌زمینه استفاده کنید.",
     "Add new batch": "افزودن بخش جدید",
     "Add translation batch": "افزودن بخش ترجمه",
-    "Choose a batch or add a new one.": "یک بخش را انتخاب کنید یا بخش تازه‌ای اضافه کنید."
+    "Choose a batch or add a new one.": "یک بخش را انتخاب کنید یا بخش تازه‌ای اضافه کنید.",
+    "Auto mode: watch the video before uploading it. The timings can contain errors, so a word can light up or a verse can change at the wrong moment.": "حالت خودکار: پیش از بارگذاری، ویدیو را ببینید. زمان‌بندی‌ها ممکن است خطا داشته باشند، پس ممکن است واژه‌ای در لحظهٔ نادرست روشن شود یا آیه‌ای عوض شود."
   },
   "reciters": {
     "97": "یاسر الدوسری",

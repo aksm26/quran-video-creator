@@ -94,18 +94,20 @@ class Form:
         lay.addWidget(widget)
         return box
 
-    def hint(self, key: str, beside: QWidget) -> QToolButton:
+    def hint(self, key, beside: QWidget) -> QToolButton:
         """A small info button that explains `beside`: on hover, and in a message when clicked (a tooltip alone
-        is easy to miss and gone in seconds). `beside` gets the same tooltip, for keyboard and screen reader users."""
+        is easy to miss and gone in seconds). `beside` gets the same tooltip, for keyboard and screen reader users.
+        `key` is a text to translate, or a function returning the translated text when it depends on the state."""
+        say = key if callable(key) else lambda: tr(key)
         hint = QToolButton()
         hint.setObjectName("hint")
         hint.setIconSize(QSize(18, 18))
         hint.setCursor(Qt.CursorShape.PointingHandCursor)
         hint.setFixedHeight(beside.sizeHint().height())  # centred on the control beside it
-        hint.clicked.connect(lambda: QMessageBox.information(self.parent, "", tr(key)))
+        hint.clicked.connect(lambda: QMessageBox.information(self.parent, "", say()))
         self.icons.append((hint, "info-circle"))
         for widget in (hint, beside):
-            self.text(widget, key, "setToolTip")
+            self.reg(lambda widget=widget: widget.setToolTip(say()))
         return hint
 
     def combo(self, items: list[tuple[str, object]]) -> NoWheelCombo:

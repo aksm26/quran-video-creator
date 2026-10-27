@@ -39,6 +39,8 @@ All downloads: [Releases page](https://github.com/aksm26/quran-video-creator/rel
   [Manual mode](#manual-mode) below.
 - **Long verses:** a verse too tall for the screen even at the smallest size now shows every line, over several
   screens.
+- **2.0.1:** in auto mode, the ⓘ next to Export reminds you to watch the video before uploading it, since the
+  timings can contain errors.
 - **Also new in 1.3:** a new app icon, and the downloads are now `QVC.AppImage`, `QVC-Windows.zip` and
   `QVC-macOS.dmg`.
 

@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.0.1 (27 October 2026)
+
+- In auto mode, the ⓘ next to Export now also asks you to watch the video before uploading it: the timings can
+  contain errors, so a word can light up or a verse can change at the wrong moment. In every interface language.
+
 ## 2.0.0 (27 October 2026)
 
 - New **Manual mode** tab: make a video from your own recitation (an audio file, or the sound of a video).

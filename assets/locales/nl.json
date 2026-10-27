@@ -176,6 +176,7 @@
     "Use at most {n} background videos.": "Gebruik hoogstens {n} achtergrondvideo's.",
     "Add new batch": "Nieuw fragment toevoegen",
     "Add translation batch": "Vertaalfragment toevoegen",
-    "Choose a batch or add a new one.": "Kies een fragment of voeg een nieuw toe."
+    "Choose a batch or add a new one.": "Kies een fragment of voeg een nieuw toe.",
+    "Auto mode: watch the video before uploading it. The timings can contain errors, so a word can light up or a verse can change at the wrong moment.": "Automatische modus: bekijk de video voordat je hem uploadt. De tijden kunnen fouten bevatten, zodat een woord op het verkeerde moment oplicht of een vers op het verkeerde moment wisselt."
   }
 }

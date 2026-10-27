@@ -176,6 +176,7 @@
     "Use at most {n} background videos.": "Guna paling banyak {n} video latar.",
     "Add new batch": "Tambah bahagian baharu",
     "Add translation batch": "Tambah bahagian terjemahan",
-    "Choose a batch or add a new one.": "Pilih satu bahagian atau tambah yang baharu."
+    "Choose a batch or add a new one.": "Pilih satu bahagian atau tambah yang baharu.",
+    "Auto mode: watch the video before uploading it. The timings can contain errors, so a word can light up or a verse can change at the wrong moment.": "Mod automatik: tonton video sebelum memuat naiknya. Masa mungkin mengandungi ralat, jadi sesuatu perkataan boleh menyala atau ayat bertukar pada saat yang salah."
   }
 }

@@ -176,6 +176,7 @@
     "Use at most {n} background videos.": "Usa al massimo {n} video di sfondo.",
     "Add new batch": "Aggiungi passaggio",
     "Add translation batch": "Aggiungi passaggio di traduzione",
-    "Choose a batch or add a new one.": "Scegli un passaggio o aggiungine uno nuovo."
+    "Choose a batch or add a new one.": "Scegli un passaggio o aggiungine uno nuovo.",
+    "Auto mode: watch the video before uploading it. The timings can contain errors, so a word can light up or a verse can change at the wrong moment.": "Modalità automatica: guarda il video prima di caricarlo. I tempi possono contenere errori, quindi una parola può illuminarsi o un versetto cambiare nel momento sbagliato."
   }
 }
