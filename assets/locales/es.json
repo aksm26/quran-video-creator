@@ -173,6 +173,9 @@
     "Set the start time of batch {n}.": "Fija el tiempo de inicio del fragmento {n}.",
     "The times are out of order at batch {n}.": "Los tiempos no están en orden en el fragmento {n}.",
     "The times are out of order at translation {n}.": "Los tiempos no están en orden en la traducción {n}.",
-    "Use at most {n} background videos.": "Usa como máximo {n} videos de fondo."
+    "Use at most {n} background videos.": "Usa como máximo {n} videos de fondo.",
+    "Add new batch": "Añadir fragmento",
+    "Add translation batch": "Añadir fragmento de traducción",
+    "Choose a batch or add a new one.": "Elige un fragmento o añade uno nuevo."
   }
 }

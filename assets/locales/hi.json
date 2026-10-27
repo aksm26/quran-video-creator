@@ -173,7 +173,10 @@
     "Set the start time of batch {n}.": "खंड {n} का शुरुआती समय तय करें।",
     "The times are out of order at batch {n}.": "खंड {n} पर समय क्रम में नहीं हैं।",
     "The times are out of order at translation {n}.": "अनुवाद {n} पर समय क्रम में नहीं हैं।",
-    "Use at most {n} background videos.": "अधिकतम {n} पृष्ठभूमि वीडियो इस्तेमाल करें।"
+    "Use at most {n} background videos.": "अधिकतम {n} पृष्ठभूमि वीडियो इस्तेमाल करें।",
+    "Add new batch": "नया खंड जोड़ें",
+    "Add translation batch": "अनुवाद खंड जोड़ें",
+    "Choose a batch or add a new one.": "कोई खंड चुनें या नया जोड़ें।"
   },
   "reciters": {
     "97": "यासिर अद-दोसरी",

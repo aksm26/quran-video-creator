@@ -173,7 +173,10 @@
     "Set the start time of batch {n}.": "Задайте время начала фрагмента {n}.",
     "The times are out of order at batch {n}.": "Время идёт не по порядку во фрагменте {n}.",
     "The times are out of order at translation {n}.": "Время идёт не по порядку в переводе {n}.",
-    "Use at most {n} background videos.": "Используйте не больше {n} фоновых видео."
+    "Use at most {n} background videos.": "Используйте не больше {n} фоновых видео.",
+    "Add new batch": "Добавить фрагмент",
+    "Add translation batch": "Добавить фрагмент перевода",
+    "Choose a batch or add a new one.": "Выберите фрагмент или добавьте новый."
   },
   "reciters": {
     "97": "Ясир ад-Даусари",

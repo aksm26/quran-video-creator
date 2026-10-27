@@ -526,6 +526,14 @@ def chapters_on(page: int, chapters: list[Chapter]) -> list[Chapter]:
     return [c for c in chapters if c.pages[0] <= page <= c.pages[1]]
 
 
+def page_of(chapter: int, verse: int, verses_of: VersesOf) -> int:
+    """The mushaf page a verse starts on (0 when unknown)."""
+    verses = verses_of(chapter)
+    if not 1 <= verse <= len(verses):
+        return 0
+    return next((w.page for w in verses[verse - 1].words if w.page), 0)
+
+
 def first_page(chapter: int, chapters: list[Chapter]) -> int:
     return next((c.pages[0] for c in chapters if c.id == chapter and c.pages[0]), 1)
 

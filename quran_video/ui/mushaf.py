@@ -41,6 +41,7 @@ class PickView(QWidget):
         self.setLayoutDirection(Qt.LayoutDirection.LeftToRight)
         self.colors = PALETTES["Light"]
         self.message = ""  # shown instead of the words (while loading, or when there is nothing to show)
+        self.active = False  # clicks pick words only while a batch is chosen to receive them
         self._items: list[tuple[QRectF, object]] = []
         self._hover = None
         self._pending = None
@@ -62,6 +63,15 @@ class PickView(QWidget):
     def pending(self):
         return self._pending
 
+    def set_active(self, on: bool) -> None:
+        """While off, clicks do nothing and the pointer is a plain arrow: no batch is chosen to change."""
+        self.active = on
+        if not on:
+            self.clear_pending()
+            self._hover = None
+            self.setCursor(Qt.CursorShape.ArrowCursor)
+        self.update()
+
     def clear_pending(self) -> None:
         if self._pending is not None:
             self._pending = None
@@ -73,6 +83,8 @@ class PickView(QWidget):
 
     def click(self, ref) -> None:
         """A click on word `ref`: the first word of a pick, or its last."""
+        if not self.active:
+            return
         if self._pending is None:
             self._pending = ref
             self.pending_changed.emit(ref)
@@ -84,7 +96,7 @@ class PickView(QWidget):
         self.update()
 
     def mouseMoveEvent(self, e) -> None:
-        ref = self.hit(e.position())
+        ref = self.hit(e.position()) if self.active else None
         if ref != self._hover:
             self._hover = ref
             self.setCursor(Qt.CursorShape.PointingHandCursor if ref is not None else Qt.CursorShape.ArrowCursor)

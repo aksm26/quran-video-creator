@@ -9,6 +9,7 @@ import pytest
 from PySide6.QtCore import QPoint, Qt
 from PySide6.QtGui import QColor
 from PySide6.QtTest import QTest
+from PySide6.QtWidgets import QLabel
 
 from quran_video.api.models import Chapter, Verse, Word
 from quran_video.config.fonts import FONTS
@@ -318,27 +319,68 @@ def click_word(view, ref):
     QTest.mouseClick(view, Qt.MouseButton.LeftButton, pos=QPoint(round(rect.center().x()), round(rect.center().y())))
 
 
-def test_two_clicks_on_the_mushaf_make_a_batch_in_reading_order(tab):
-    assert tab.mushaf.page.number == 603
+def test_clicks_on_the_mushaf_do_nothing_until_a_batch_is_chosen(tab):
+    assert tab.mushaf.page.number == 603 and tab.pick_hint.text() == "Choose a batch or add a new one."
+    click_word(tab.mushaf, WordRef(111, 1, 1))
+    click_word(tab.mushaf, WordRef(111, 1, 2))
+    assert tab.batches == [] and tab.mushaf.pending is None
+
+
+def test_add_new_batch_then_two_clicks_make_a_batch_in_reading_order(tab):
+    tab.add_btn.click()
+    assert tab.cards.count() == 1 and tab.pick_hint.text() == "Click the first word, then the last word."
     click_word(tab.mushaf, WordRef(111, 2, 3))
     assert tab.mushaf.pending == WordRef(111, 2, 3) and tab.pick_hint.text() == "Click the last word."
     click_word(tab.mushaf, WordRef(111, 1, 2))  # the last word picked first: still in reading order
     assert [(str(b.first), str(b.last)) for b in tab.batches] == [("111:1:2", "111:2:3")]
-    assert tab.batch_list.count() == 1 and tab.batch_list.currentRow() == 0
+    assert tab.target is None and tab.cards.count() == 1
+    preview = tab.cards.cards[0].findChildren(QLabel)[1].text()
+    assert preview.startswith("بتٌ")  # its first words, so it can be recognised
+
+
+def test_choosing_a_card_opens_its_page_and_new_clicks_change_its_words_but_not_its_times(tab):
+    tab.batches = [Batch(WordRef(111, 1, 1), WordRef(111, 1, 2), 1000, 2000, word_ms=(1000, 1500)),
+                   Batch(WordRef(112, 1, 1), WordRef(112, 1, 2), 3000)]
+    tab._changed()
+    tab.cards.cards[1].chosen.emit()  # its first word is on page 604: the mushaf opens there
+    assert tab.target == ("arabic", 1) and tab.page_box.value() == 604
+    tab.cards.chosen.emit(0)
+    assert tab.target == ("arabic", 0) and tab.page_box.value() == 603
+    tab.grab()
+    click_word(tab.mushaf, WordRef(111, 2, 1))
+    click_word(tab.mushaf, WordRef(111, 2, 4))
+    assert tab.batches[0] == Batch(WordRef(111, 2, 1), WordRef(111, 2, 4), 1000, 2000)  # taps were for old words
+    tab.add_btn.click()
+    assert tab.cards.count() == 3
+    tab._deselect()  # Esc: the new batch, never finished, is dropped
+    assert len(tab.batches) == 2 and tab.cards.count() == 2 and tab.target is None
 
 
 def test_the_manual_tab_keeps_its_batches_without_any_quran_text(tab):
+    tab.add_btn.click()
     tab.mushaf.click(WordRef(111, 1, 1))
     tab.mushaf.click(WordRef(111, 1, 4))
     tab.translation.setCurrentIndex(tab.translation.findData(DEFAULT_TRANSLATION))
-    tab.view_tr.setChecked(True)
+    tab.cards.translation.emit(0)  # the card's Translation button: its translation is picked next
+    assert tab.target == ("attached", 0) and tab.view_tr.isChecked() and not tab.mushaf.active
     tab.tokens.click(TokenRef(111, 1, 0))
     tab.tokens.click(TokenRef(111, 1, 1))
     assert tab.batches[0].translation == TokenRange(TokenRef(111, 1, 0), TokenRef(111, 1, 1))
     tab.save()
     saved = tab.settings.value("manual")
-    assert "111:1:1" in saved and not any("؀" <= c <= "ۿ" for c in saved) and "t111" not in saved
+    assert "111:1:1" in saved and not any("\u0600" <= c <= "\u06ff" for c in saved) and "t111" not in saved
     assert tab.problem().key == "Choose an audio or video file."  # Export stays off, the footer says why
+
+
+def test_translation_batches_on_their_own_times_are_added_the_same_way(tab):
+    tab.track.setChecked(True)
+    assert not tab.add_trans_btn.isHidden() and not tab.trans_cards.isHidden()
+    tab.add_trans_btn.click()
+    assert tab.target == ("track", 0) and tab.steps.currentIndex() == 2 and tab.view_tr.isChecked()
+    tab.tokens.click(TokenRef(111, 2, 2))
+    tab.tokens.click(TokenRef(111, 2, 0))
+    assert tab.trans_batches == [TransBatch(TokenRange(TokenRef(111, 2, 0), TokenRef(111, 2, 2)))]
+    assert tab.trans_cards.count() == 1 and tab.target is None
 
 
 def test_setting_times_keeps_the_batches_in_order_and_can_be_undone(tab, monkeypatch, tmp_path):

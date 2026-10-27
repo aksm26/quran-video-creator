@@ -173,6 +173,9 @@
     "Set the start time of batch {n}.": "Atur waktu mulai bagian {n}.",
     "The times are out of order at batch {n}.": "Urutan waktu salah di bagian {n}.",
     "The times are out of order at translation {n}.": "Urutan waktu salah di terjemahan {n}.",
-    "Use at most {n} background videos.": "Gunakan paling banyak {n} video latar."
+    "Use at most {n} background videos.": "Gunakan paling banyak {n} video latar.",
+    "Add new batch": "Tambah bagian baru",
+    "Add translation batch": "Tambah bagian terjemahan",
+    "Choose a batch or add a new one.": "Pilih bagian atau tambahkan yang baru."
   }
 }

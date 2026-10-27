@@ -173,6 +173,9 @@
     "Set the start time of batch {n}.": "{n}. bölümün başlangıç zamanını ayarlayın.",
     "The times are out of order at batch {n}.": "{n}. bölümde zamanlar sırasız.",
     "The times are out of order at translation {n}.": "{n}. mealde zamanlar sırasız.",
-    "Use at most {n} background videos.": "En fazla {n} arka plan videosu kullanın."
+    "Use at most {n} background videos.": "En fazla {n} arka plan videosu kullanın.",
+    "Add new batch": "Yeni bölüm ekle",
+    "Add translation batch": "Meal bölümü ekle",
+    "Choose a batch or add a new one.": "Bir bölüm seçin ya da yeni bir tane ekleyin."
   }
 }

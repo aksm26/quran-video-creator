@@ -173,7 +173,10 @@
     "Set the start time of batch {n}.": "অংশ {n}-এর শুরুর সময় ঠিক করুন।",
     "The times are out of order at batch {n}.": "অংশ {n}-এ সময় ক্রমে নেই।",
     "The times are out of order at translation {n}.": "অনুবাদ {n}-এ সময় ক্রমে নেই।",
-    "Use at most {n} background videos.": "সর্বোচ্চ {n}টি ব্যাকগ্রাউন্ড ভিডিও ব্যবহার করুন।"
+    "Use at most {n} background videos.": "সর্বোচ্চ {n}টি ব্যাকগ্রাউন্ড ভিডিও ব্যবহার করুন।",
+    "Add new batch": "নতুন অংশ যোগ করুন",
+    "Add translation batch": "অনুবাদের অংশ যোগ করুন",
+    "Choose a batch or add a new one.": "একটি অংশ বেছে নিন বা নতুন যোগ করুন।"
   },
   "reciters": {
     "97": "ইয়াসির আদ-দোসারি",

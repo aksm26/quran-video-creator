@@ -173,6 +173,9 @@
     "Set the start time of batch {n}.": "Réglez le temps de début du passage {n}.",
     "The times are out of order at batch {n}.": "Les temps ne sont pas dans l'ordre au passage {n}.",
     "The times are out of order at translation {n}.": "Les temps ne sont pas dans l'ordre à la traduction {n}.",
-    "Use at most {n} background videos.": "Utilisez au plus {n} vidéos d'arrière-plan."
+    "Use at most {n} background videos.": "Utilisez au plus {n} vidéos d'arrière-plan.",
+    "Add new batch": "Ajouter un passage",
+    "Add translation batch": "Ajouter un passage de traduction",
+    "Choose a batch or add a new one.": "Choisissez un passage ou ajoutez-en un."
   }
 }

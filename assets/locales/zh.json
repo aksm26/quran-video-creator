@@ -173,7 +173,10 @@
     "Set the start time of batch {n}.": "请设置片段 {n} 的开始时间。",
     "The times are out of order at batch {n}.": "片段 {n} 处的时间顺序不对。",
     "The times are out of order at translation {n}.": "译文 {n} 处的时间顺序不对。",
-    "Use at most {n} background videos.": "背景视频最多只能用 {n} 个。"
+    "Use at most {n} background videos.": "背景视频最多只能用 {n} 个。",
+    "Add new batch": "添加新片段",
+    "Add translation batch": "添加译文片段",
+    "Choose a batch or add a new one.": "请选择一个片段，或添加新片段。"
   },
   "reciters": {
     "97": "亚西尔·达瓦萨里",

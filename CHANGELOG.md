@@ -3,8 +3,9 @@
 ## Unreleased
 
 - New **Manual mode** tab: make a video from your own recitation (an audio file, or the sound of a video).
-  - Pick batches of words on a mushaf page: a first word and a last word, across verses, from anywhere in the
-    Quran and in any order.
+  - Pick batches of words on a mushaf page: Add new batch, then a first word and a last word, across verses,
+    from anywhere in the Quran and in any order. Each batch is a card in a scrolling list, showing its first words;
+    the page only changes the batch whose card is chosen.
   - Translations go with each batch, or have their own times.
   - One background for the video, or a picture or video for each batch.
   - **Set times** plays the recording: S starts the next batch, E ends one, W lights each word (with Highlight

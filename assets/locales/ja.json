@@ -173,7 +173,10 @@
     "Set the start time of batch {n}.": "区間 {n} の開始時間を設定してください。",
     "The times are out of order at batch {n}.": "区間 {n} で時間の順序が正しくありません。",
     "The times are out of order at translation {n}.": "翻訳 {n} で時間の順序が正しくありません。",
-    "Use at most {n} background videos.": "背景動画は {n} 本までにしてください。"
+    "Use at most {n} background videos.": "背景動画は {n} 本までにしてください。",
+    "Add new batch": "区間を追加",
+    "Add translation batch": "翻訳の区間を追加",
+    "Choose a batch or add a new one.": "区間を選ぶか、新しく追加してください。"
   },
   "reciters": {
     "97": "ヤーシル・アッドーサリー",

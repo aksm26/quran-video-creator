@@ -173,7 +173,10 @@
     "Set the start time of batch {n}.": "زمان شروع بخش {n} را تنظیم کنید.",
     "The times are out of order at batch {n}.": "زمان‌ها در بخش {n} به‌ترتیب نیستند.",
     "The times are out of order at translation {n}.": "زمان‌ها در ترجمهٔ {n} به‌ترتیب نیستند.",
-    "Use at most {n} background videos.": "حداکثر {n} ویدیوی پس‌زمینه استفاده کنید."
+    "Use at most {n} background videos.": "حداکثر {n} ویدیوی پس‌زمینه استفاده کنید.",
+    "Add new batch": "افزودن بخش جدید",
+    "Add translation batch": "افزودن بخش ترجمه",
+    "Choose a batch or add a new one.": "یک بخش را انتخاب کنید یا بخش تازه‌ای اضافه کنید."
   },
   "reciters": {
     "97": "یاسر الدوسری",

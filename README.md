@@ -68,13 +68,14 @@ Quran data provided by Quran.Foundation (https://quran.foundation).</sub>
 The **Manual mode** tab makes a video from your own recording (an audio file, or a video whose sound is used).
 
 1. **Recording:** choose the file. Type the reciter's name if it should be in the credits.
-2. **Batches:** on the mushaf page on the right, click a batch's first word, then its last word. A batch can cross
-   verses and come from anywhere in the Quran, in any order: if the reciter goes back and repeats, pick those
-   words again. The list is the order they are shown in; one batch is on screen at a time.
-3. **Translation** (optional): with each batch (pick a batch, switch to Translation and click the first and last
-   word of its translation), or on its own times (each translation range is a batch of its own).
-4. **Look:** font, theme (or your own, with Custom), surah name, and a background for the whole video. Each batch
-   can also have its own picture or video.
+2. **Batches:** press **Add new batch**, then click its first word and its last word on the mushaf page. A batch
+   can cross verses and come from anywhere in the Quran, in any order: if the reciter goes back and repeats, add
+   those words again. Each batch is a card in a scrolling list, in the order they are shown; one batch is on
+   screen at a time. Clicks on the page only do something while a card is chosen: click a card to change its words
+   (Esc lets it go). Its buttons give it a translation, its own picture or video, move it, or remove it.
+3. **Translation** (optional): with each batch (the card's Translation button, then the first and last word of
+   its translation), or on its own times (**Add translation batch**: each range is a batch of its own).
+4. **Look:** font, theme (or your own, with Custom), surah name, and a background for the whole video.
 5. **Set times:** the recording plays. Press **S** when a batch starts (that ends the one before), **E** to end
    one early and leave the screen empty, and drag any checkpoint on the bar to adjust it. With Highlight on,
    press **W** as each word is recited; words you don't tap share the time by their length. **Ctrl+Z** undoes.
