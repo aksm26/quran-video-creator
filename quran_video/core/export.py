@@ -296,18 +296,39 @@ def export(job: ExportJob, client: QuranClient, progress: Callable[[float], None
     q = QUALITIES[job.quality]
     job.out_dir.mkdir(parents=True, exist_ok=True)
     out = job.out_dir / job.filename
-    part = out.with_name(out.name + ".part")
     hl_fade = job.highlight_fade and job.highlight != HIGHLIGHT_NONE and job.show_arabic
     plan = frame_plan(prep, job.fps, hl_fade=hl_fade)
 
+    def cmd_for(tmpdir: Path, part: Path) -> list[str]:
+        bg = scaled_background(job.background, w, h, tmpdir) if job.background is not None else None
+        return build_cmd(ffmpeg_exe(), w, h, job.fps, prep.audio, prep.audio_start_ms,
+                         prep.audio_end_ms - prep.audio_start_ms, part, background=bg, crf=q.crf,
+                         audio_kbps=q.audio_kbps, lead=prep.lead_audio, freeze=job.bg_end == "freeze")
+
+    encode(cmd_for, plan, prep.renderer.render, out, job.fps, progress, cancelled)
+    note = f"\nNote (not for the caption): {prep.warning}\n" if prep.warning else ""  # the highlight may be off
+    credits_path(out).write_text(credits(job) + note, "utf-8")
+    progress(1.0)
+    return out
+
+
+def scaled_background(src: Path, w: int, h: int, tmpdir: Path, name: str = "bg.png") -> Path:
+    """An image is scaled and cropped to w x h once, here, so ffmpeg doesn't resize a huge photo on every frame.
+    A video is used as it is."""
+    if src.suffix.lower() not in IMAGE_EXTS:
+        return src
+    out = tmpdir / name
+    background_image(src, w, h).save(str(out))
+    return out
+
+
+def encode(cmd_for: Callable[[Path, Path], list[str]], plan: list[Frame], draw: Callable[..., QImage], out: Path,
+           fps: int, progress: Callable[[float], None], cancelled: Callable[[], bool]) -> None:
+    """Draw every frame of `plan` (draw(*frame)) and stream it into the ffmpeg command that cmd_for(tmpdir, part)
+    builds. The video is written to `part` and renamed to `out` once ffmpeg has finished."""
+    part = out.with_name(out.name + ".part")
     with tempfile.TemporaryFile() as err, tempfile.TemporaryDirectory() as tmpdir:
-        bg = job.background
-        if bg is not None and bg.suffix.lower() in IMAGE_EXTS:
-            bg = Path(tmpdir) / "bg.png"  # sized once here, so ffmpeg doesn't resize a huge photo on every frame
-            background_image(job.background, w, h).save(str(bg))
-        cmd = build_cmd(ffmpeg_exe(), w, h, job.fps, prep.audio, prep.audio_start_ms,
-                        prep.audio_end_ms - prep.audio_start_ms, part, background=bg, crf=q.crf,
-                        audio_kbps=q.audio_kbps, lead=prep.lead_audio, freeze=job.bg_end == "freeze")
+        cmd = cmd_for(Path(tmpdir), part)
         proc = subprocess.Popen(cmd, stdin=subprocess.PIPE, stderr=err, creationflags=NO_WINDOW)
         frames: queue.Queue[bytes | None] = queue.Queue(maxsize=3)  # drawn frames waiting for ffmpeg (8 MB each)
         failed: list[BaseException] = []
@@ -326,10 +347,10 @@ def export(job: ExportJob, client: QuranClient, progress: Callable[[float], None
                 if failed:
                     raise BrokenPipeError
                 if frame != last:
-                    img = prep.renderer.render(*frame)  # keep img alive: constBits() is a view into it
+                    img = draw(*frame)  # keep img alive: constBits() is a view into it
                     last, pixels = frame, img.constBits().tobytes()
                 frames.put(pixels)
-                if i % job.fps == 0:
+                if i % fps == 0:
                     progress(i / len(plan))
             stop_writer()
             proc.stdin.close()
@@ -348,10 +369,6 @@ def export(job: ExportJob, client: QuranClient, progress: Callable[[float], None
             part.unlink(missing_ok=True)
             raise
     part.replace(out)
-    note = f"\nNote (not for the caption): {prep.warning}\n" if prep.warning else ""  # the highlight may be off
-    credits_path(out).write_text(credits(job) + note, "utf-8")
-    progress(1.0)
-    return out
 
 
 def credits(job: ExportJob) -> str:

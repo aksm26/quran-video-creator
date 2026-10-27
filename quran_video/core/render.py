@@ -9,7 +9,7 @@ from ..api.models import Verse
 from ..config.fonts import SURAH_NAME_FONT, TRANSLATION_FONT, FontSpec
 from ..config.stops import DEFAULT_STOPS, MADANI, chars_for
 from ..config.themes import Theme
-from .layout import Layout, fit, make_font
+from .layout import EMPTY, Layout, fit, make_font
 from .timing import ALL, State
 from .translation import letter_weight, split_translation
 
@@ -51,6 +51,7 @@ class RenderOptions:
     translation_width: float = DEFAULT_TEXT_WIDTH  # the same for the translation
     name_scale: float = 1.0  # size of the surah name
     fill: str | None = None  # colour painted under the text; None leaves it transparent, to lay over a picture
+    share_translation: bool = True  # cut a verse's translation across its pages; False shows it whole on each
 
 
 @dataclass
@@ -104,14 +105,21 @@ class TextRenderer:
     """Draws the text layer of a video frame: the verse (or part of it) on screen, its translation and the
     surah name, on a transparent image that ffmpeg lays over the background."""
 
-    def __init__(self, width: int, height: int, verses: list[Verse], font: FontSpec, opts: RenderOptions):
+    def __init__(self, width: int, height: int, verses: list[Verse], font: FontSpec, opts: RenderOptions,
+                 signs: list[frozenset[int]] | None = None, chapters: list[int] | None = None):
+        """`signs` (manual mode): per verse, the indices of its words that are verse-end signs inside the text,
+        given as the bare number. `chapters`: per verse, the surah whose name is drawn on top (0: none), instead
+        of the one `opts.chapter` names."""
         self.w, self.h, self.opts = width, height, opts
         self.verses = verses
         self.style = font.style
         self.family = load_font(font.path)
         self.marker_family = load_font(font.marker_path)
         self.trans_family = load_font(TRANSLATION_FONT)
-        self.words = [[w.text for w in v.text_words] for v in verses]
+        self.signs = signs or [frozenset()] * len(verses)
+        self.words = [[font.marker_fmt.format(n=w.text) if i in signed else w.text
+                       for i, w in enumerate(v.text_words)] for v, signed in zip(verses, self.signs)]
+        self.chapters = chapters
         self.markers = [font.marker_fmt.format(n=v.end_text) if opts.verse_marker and v.end_text else ""
                         for v in verses]
         self.short = min(width, height)
@@ -127,6 +135,10 @@ class TextRenderer:
         self._pages: dict[int, list[Page]] = {}
         self._header = (load_font(SURAH_NAME_FONT), f"surah{opts.chapter:03d}") if opts.chapter else None
 
+    def translation_fits(self, text: str) -> bool:
+        """Does this translation fit its box at a readable size? Manual mode cuts a longer one into pieces."""
+        return self._fit_translation(text)[1] <= self.trans_max_h
+
     def _fit_translation(self, text: str) -> tuple[QFont, float]:
         box = QRectF(0, 0, self.w * self.opts.translation_width, 100000)
         px = int(self.short * (0.036 if self.opts.show_arabic else 0.058))  # larger when it stands alone
@@ -141,13 +153,19 @@ class TextRenderer:
         """Pages for a verse: the whole verse, or its parts; any page still too tall is split by lines."""
         if verse in self._pages:
             return self._pages[verse]
-        words, marker = self.words[verse], self.markers[verse]
+        words, marker, signs = self.words[verse], self.markers[verse], self.signs[verse]
+        translation = self.verses[verse].translation if self.opts.translation else ""
+        if not words and not marker:  # nothing in Arabic on this screen: a pause, or a translation alone
+            tf, th = self._fit_translation(translation) if translation else (None, 0.0)
+            self._pages[verse] = [Page(frozenset(), [], {}, {}, EMPTY, translation, tf, th)]
+            return self._pages[verse]
         chosen = chars_for(self.opts.stops, self.style) if self.opts.split == SPLIT_PARTS else ""
         chunks = split_parts(words, chosen) if chosen else [list(range(len(words)))]
         pieces = [""] * len(chunks)
-        if self.opts.translation and self.verses[verse].translation:
-            pieces = split_translation(self.verses[verse].translation,
-                                       [letter_weight("".join(words[i] for i in c)) for c in chunks])
+        if translation and not self.opts.share_translation:
+            pieces = [translation] * len(chunks)
+        elif translation:
+            pieces = split_translation(translation, [letter_weight("".join(words[i] for i in c)) for c in chunks])
         if marker and chunks:
             chunks[-1] = chunks[-1] + [len(words)]  # the sign closes the last part
         shown = words + [marker]
@@ -158,17 +176,19 @@ class TextRenderer:
         out = []
         for chunk, piece in zip(chunks, pieces):
             lay = fit([shown[i] for i in chunk],
-                      [self.marker_family if i == len(words) else self.family for i in chunk],
+                      [self.marker_family if i == len(words) or i in signs else self.family for i in chunk],
                       box_w, box_h, int(self.short * 0.075 * self.opts.text_width / DEFAULT_TEXT_WIDTH),
                       int(self.short * 0.035), self.opts.line_spacing,
-                      glue_last=len(chunk) > 1 and chunk[-1] == len(words))
+                      glue_last=len(chunk) > 1 and chunk[-1] == len(words),
+                      glue=frozenset(n for n, i in enumerate(chunk) if n and i in signs))
             widths = {g: lay.widths[n] for n, g in enumerate(chunk)}
             fonts = {g: lay.fonts[n] for n, g in enumerate(chunk)}
             lines = [[chunk[n] for n in line] for line in lay.lines]
             # still too tall at the minimum size: paginate by lines, and the translation with it
             per = len(lines) if lay.fits else max(1, int(box_h // lay.line_h))
             parts = [lines[k:k + per] for k in range(0, len(lines), per)]
-            texts = [piece] if len(parts) == 1 or not piece else split_translation(
+            texts = [piece] * len(parts) if len(parts) == 1 or not piece or not self.opts.share_translation \
+                else split_translation(
                 piece, [letter_weight("".join(words[g] for line in part for g in line if g < len(words)))
                         for part in parts])
             for part, text in zip(parts, texts):
@@ -205,8 +225,10 @@ class TextRenderer:
         p.setRenderHint(QPainter.RenderHint.TextAntialiasing)
         if opts.overlay > 0:
             p.fillRect(img.rect(), QColor(0, 0, 0, int(255 * opts.overlay)))
-        if self._header:
+        chapter = self.chapters[state.verse] if self.chapters is not None else None
+        if self._header and chapter != 0:
             family, glyphs = self._header
+            glyphs = glyphs if chapter is None else f"surah{chapter:03d}"
             p.setFont(make_font(family, self.header_px))
             p.setPen(QColor(theme.text))
             p.drawText(QRectF(0, self.h * 0.02, self.w, self.header_px * 1.3), Qt.AlignmentFlag.AlignCenter, glyphs)
@@ -272,10 +294,11 @@ class TextRenderer:
     def _draw_verse(self, p: QPainter, state: State, progress: float, fading_word: int | None) -> None:
         theme, words, n = self.opts.theme, self.words[state.verse], len(self.words[state.verse])
         shown = words + [self.markers[state.verse]]
+        signs = self.signs[state.verse]
         page = self.pages(state.verse)[self.page_index(state)]
         lay = page.lay
         reveal = self.opts.reveal
-        arabic = self.opts.show_arabic
+        arabic = self.opts.show_arabic and bool(page.lines)
         single = arabic and reveal == REVEAL_SINGLE and state.active != ALL
         if not arabic:
             arabic_h = gap = 0.0
@@ -297,12 +320,12 @@ class TextRenderer:
                 for word in line:  # index into `shown`; word n is the verse-end sign
                     x -= page.widths[word]
                     hidden = reveal == REVEAL_BUILD and state.reveal != ALL and word < n and word + 1 > state.reveal
-                    if word == n:  # verse-end sign appears once the last word has been recited
-                        hidden = reveal == REVEAL_BUILD and state.reveal != ALL and state.reveal < n
+                    if word == n or word in signs:  # a verse-end sign appears once the word before it is recited
+                        hidden = reveal == REVEAL_BUILD and state.reveal != ALL and state.reveal < word
                     if not hidden:
                         p.setFont(page.fonts[word])
-                        p.setPen(self._word_color(state, word + 1, progress, fading_word) if word < n
-                                 else QColor(theme.text))
+                        p.setPen(self._word_color(state, word + 1, progress, fading_word)
+                                 if word < n and word not in signs else QColor(theme.text))
                         p.drawText(QPointF(x, baseline), shown[word])
                     x -= lay.space
         if page.translation:
