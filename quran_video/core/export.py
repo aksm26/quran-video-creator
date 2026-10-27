@@ -39,6 +39,7 @@ LEAD_MS = 120  # the next text is swapped in this long before its first word, wh
 HIGHLIGHT_FADE_MS = 240  # a newly lit word eases from the text colour to the highlight colour
 HIGHLIGHT_LEAD_MS = 70  # and starts turning this early, so the colour has arrived when the word is heard
 VERSE_CHANGE_TIMING, VERSE_CHANGE_LAST_WORD = "timing", "last_word"
+QF_CREDIT = "Quran data provided by Quran.Foundation (https://quran.foundation)"  # required on every video
 
 
 @dataclass
@@ -376,7 +377,7 @@ def credits(job: ExportJob) -> str:
     lines = [f"Recitation: {job.reciter.name}"]
     if TRANSLATIONS[job.translation] is not None:
         lines.append(f"Translation: {job.translation}")
-    return "\n".join(lines + ["Quran data provided by Quran.Foundation (https://quran.foundation)"]) + "\n"
+    return "\n".join(lines + [QF_CREDIT]) + "\n"
 
 
 def credits_path(video: Path) -> Path:

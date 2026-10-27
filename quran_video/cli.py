@@ -1,6 +1,9 @@
-"""Headless export: python -m quran_video.cli 112 1 4 --reciter 7 --format 9:16 --out out"""
+"""Headless export: python -m quran_video.cli 112 1 4 --reciter 7 --format 9:16 --out out
+
+A manual-mode project (saved in the window): python -m quran_video.cli manual my-video.qvc --format 9:16"""
 
 import argparse
+import json
 import logging
 import os
 import sys
@@ -16,11 +19,34 @@ from .config.themes import THEMES
 from .config.translations import TRANSLATIONS
 from .core.export import ExportJob, credits_path, export, export_pngs
 from .core.ffmpeg import FFmpegError
+from .core.manual import from_json
+from .core.manual_export import export_manual, manual_pngs
 from .core.timing import DataError
 
+def _qt_app():
+    os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+    from PySide6.QtGui import QGuiApplication
+    return QGuiApplication.instance() or QGuiApplication(sys.argv[:1])  # fonts need an application object
+
+
+def _progress(f: float) -> None:
+    print(f"\r{f:6.1%}" + " " * 30, end="", flush=True)  # the spaces wipe out the longer download line
+
+
+def _warn(e: DataError) -> None:
+    print(f"\nWarning: {e}", file=sys.stderr)
+
+
+def _done(path: Path) -> None:
+    print(f"\n{path}\nCredits for the caption (required by the Quran Foundation terms): {credits_path(path)}")
+
+
 def main(argv=None) -> int:
+    argv = sys.argv[1:] if argv is None else argv
+    if argv[:1] == ["manual"]:
+        return manual_main(argv[1:])
     # The defaults are ExportJob's own (ExportJob.fps and so on), so the command line and the code always agree.
-    parser = argparse.ArgumentParser(description=__doc__)
+    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     add = parser.add_argument
     add("chapter", type=int)
     add("v_from", type=int)
@@ -65,9 +91,7 @@ def main(argv=None) -> int:
     args = parser.parse_args(argv)
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
 
-    os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
-    from PySide6.QtGui import QGuiApplication
-    app = QGuiApplication(sys.argv[:1])  # noqa: F841 - fonts need an application object
+    app = _qt_app()  # noqa: F841
 
     stops = tuple(x for x in args.stops.split(",") if x)
     if any(x not in STOPS for x in stops):
@@ -101,11 +125,40 @@ def main(argv=None) -> int:
             if args.png_only:
                 print(*export_pngs(job, client), sep="\n")
             else:
-                # the spaces wipe out the longer download line
-                path = export(job, client, progress=lambda f: print(f"\r{f:6.1%}" + " " * 30, end="", flush=True),
-                              download=show_download, warn=lambda e: print(f"\nWarning: {e}", file=sys.stderr))
-                print(f"\n{path}\nCredits for the caption (required by the Quran Foundation terms): "
-                      f"{credits_path(path)}")
+                _done(export(job, client, progress=_progress, download=show_download, warn=_warn))
+    except (DataError, ApiError, FFmpegError) as e:
+        print(f"\nError: {e}", file=sys.stderr)
+        return 1
+    return 0
+
+
+def manual_main(argv: list[str]) -> int:
+    """Export a manual-mode project file, made and saved in the window's Manual mode tab."""
+    parser = argparse.ArgumentParser(prog="cli manual", description=manual_main.__doc__)
+    add = parser.add_argument
+    add("project", type=Path, help="the .qvc project file")
+    add("--format", choices=[*FORMATS, "all"], help="default: the formats chosen in the project")
+    add("--out", type=Path, help="default: the folder chosen in the project")
+    add("--quality", choices=list(QUALITIES), help="default: the project's")
+    add("--png-only", action="store_true", help="write one still per screen instead of a video")
+    args = parser.parse_args(argv)
+    logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
+    app = _qt_app()  # noqa: F841
+    try:
+        data = json.loads(args.project.read_text("utf-8"))
+    except (OSError, ValueError) as e:
+        parser.error(f"can't read {args.project}: {e}")
+    try:
+        job, formats = from_json(data, args.project.resolve().parent)
+        if args.format:
+            formats = list(FORMATS) if args.format == "all" else [args.format]
+        job = replace(job, out_dir=args.out or job.out_dir, quality=args.quality or job.quality)
+        client = QuranClient()
+        for fmt in formats:
+            if args.png_only:
+                print(*manual_pngs(replace(job, fmt=fmt), client), sep="\n")
+            else:
+                _done(export_manual(replace(job, fmt=fmt), client, progress=_progress, warn=_warn))
     except (DataError, ApiError, FFmpegError) as e:
         print(f"\nError: {e}", file=sys.stderr)
         return 1
