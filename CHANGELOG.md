@@ -1,8 +1,9 @@
 # Changelog
 
-## Unreleased
+## 2.0.0 (27 October 2026)
 
 - New **Manual mode** tab: make a video from your own recitation (an audio file, or the sound of a video).
+  - Five steps on the left: Recording, Batches, Translation, Look and Output.
   - Pick batches of words on a mushaf page: Add new batch, then a first word and a last word, across verses,
     from anywhere in the Quran and in any order. Each batch is a card in a scrolling list, showing its first words;
     the page only changes the batch whose card is chosen.
@@ -11,6 +12,9 @@
   - **Set times** plays the recording: S starts the next batch, E ends one, W lights each word (with Highlight
     on). Checkpoints can be dragged on the bar, Ctrl+Z undoes, the start and end of the recording can be
     trimmed, and the preview shows the video as it plays.
+  - A **Preview** view next to the mushaf shows the video as it will look, one screen at a time, even before the
+    times are set.
+  - If the recording can't be found or has no sound, the Recording step says so.
   - Projects are kept between runs and can be saved as `.qvc` files, which `cli manual` exports headless.
 - A verse too tall for the screen even at the smallest size now shows every line over several screens.
 - New dependency: PySide6-Addons, for Qt Multimedia (playing the recording). Without it, times can still be set,
