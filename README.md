@@ -31,14 +31,16 @@ The Arabic lights up word by word with the reciter, with a translation under it.
 Nothing else to install. The app needs internet to download the Quran text, translations and recitations.
 All downloads: [Releases page](https://github.com/aksm26/quran-video-creator/releases/latest).
 
-## What's new in 1.3
+## What's new in 2.0
 
-- **New app icon,** with clean transparent corners.
-- **Cleaner download names on every system:** `QVC.AppImage`, `QVC-Windows.zip` and `QVC-macOS.dmg` (the app inside
-  is `QVC` / `QVC.exe` / `QVC.app`). Saved settings and custom themes are kept. If you already have the Linux
-  AppImage, download the new `QVC.AppImage` once — the old file's built-in updater only knows the old name.
-- **Also new in 1.2:** choose when the next verse appears, word timing that follows the voice more closely, the
-  verse number kept with its last word, and ⓘ info icons that open their explanation when clicked.
+- **Manual mode,** a new tab for your own recitation: pick the words on a mushaf page in batches, from anywhere
+  in the Quran and in any order, then set the times while the recording plays (S, E and W keys). Translations,
+  a background per batch, a Preview of each screen, and projects saved as `.qvc` files. See
+  [Manual mode](#manual-mode) below.
+- **Long verses:** a verse too tall for the screen even at the smallest size now shows every line, over several
+  screens.
+- **Also new in 1.3:** a new app icon, and the downloads are now `QVC.AppImage`, `QVC-Windows.zip` and
+  `QVC-macOS.dmg`.
 
 All changes: [CHANGELOG](CHANGELOG.md).
 
@@ -75,11 +77,20 @@ The **Manual mode** tab makes a video from your own recording (an audio file, or
    (Esc lets it go). Its buttons give it a translation, its own picture or video, move it, or remove it.
 3. **Translation** (optional): with each batch (the card's Translation button, then the first and last word of
    its translation), or on its own times (**Add translation batch**: each range is a batch of its own).
-4. **Look:** font, theme (or your own, with Custom), surah name, and a background for the whole video.
+4. **Look:** font, theme (or your own, with Custom), surah name, highlight, and a background for the whole video.
+   A batch's own picture or video (from its card) is shown over it while that batch is on screen.
 5. **Set times:** the recording plays. Press **S** when a batch starts (that ends the one before), **E** to end
    one early and leave the screen empty, and drag any checkpoint on the bar to adjust it. With Highlight on,
    press **W** as each word is recited; words you don't tap share the time by their length. **Ctrl+Z** undoes.
-6. **Export**, as in auto mode. Save the batches and times with **Save project** (a `.qvc` file).
+   The start and end of the recording can be trimmed, and the preview shows the video as it plays.
+6. **Output:** format, quality and folder, then **Export**, as in auto mode. Save the batches and times with
+   **Save project** (a `.qvc` file); **Open project** loads one again. The tab also keeps your work between runs.
+
+Above the page, **Arabic**, **Translation** and **Preview** switch the view. Preview draws the video one screen at
+a time (‹ and › to step through); batches without times yet are shown for a few seconds each, so you can check
+the look before setting any times. A line above the page always says what a click will do.
+
+A saved project exports without the window too: `main.py cli manual my-video.qvc --format 9:16`.
 
 Every batch is shown exactly as the API returns it, and the credits name the verses used. A project file keeps
 only references and times, never the text: it is fetched again when the project is opened.
