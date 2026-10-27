@@ -75,6 +75,23 @@ QListWidget::item { min-height: 28px; padding: 0 8px; border-radius: 4px; }
 QListWidget::item:hover { background: @hover; }
 QListWidget::item:selected { background: @accent_soft; color: @text; }
 
+/* manual mode: the batch lists, the Arabic/Translation switch, the Auto/Manual tabs */
+QListWidget#batches { background: @field; border: 1px solid @line; border-radius: 6px; padding: 4px; }
+QListWidget#batches::item { min-height: 0; padding: 6px 8px; }
+QPushButton:checked { background: @accent_soft; border-color: @accent; }
+QTabBar#modes::tab, QTabBar#steps::tab { background: transparent; border: none; border-bottom: 2px solid transparent;
+                                         padding: 8px 14px; font-weight: 600; color: @muted; }
+QTabBar#steps::tab { padding: 7px 10px; }
+QTabBar#modes::tab:selected, QTabBar#steps::tab:selected { color: @text; border-bottom: 2px solid @accent; }
+QTabBar#modes::tab:hover:!selected, QTabBar#steps::tab:hover:!selected { color: @text; }
+QTabBar#modes::tab:disabled, QTabBar#steps::tab:disabled { color: @disabled; }
+QFrame#batchCard { background: @card; border: 1px solid @border; border-radius: 8px; }
+QFrame#batchCard:hover { border-color: @line; }
+QFrame#batchCard[selected="true"] { background: @accent_soft; border: 2px solid @accent; }
+QLabel#badge { background: @accent; color: @on_accent; border-radius: 12px; font-weight: 700; }
+QPushButton#small { padding: 3px 9px; min-height: 0; font-size: 12px; }
+QLabel#hintLine { color: @accent; font-weight: 600; padding: 2px 2px 4px 2px; }
+
 /* checkboxes and radio buttons */
 QCheckBox, QRadioButton { spacing: 9px; }
 QCheckBox::indicator, QRadioButton::indicator { width: 16px; height: 16px; border: 1px solid @line;

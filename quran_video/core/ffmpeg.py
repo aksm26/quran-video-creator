@@ -98,3 +98,77 @@ def build_cmd(exe: str, w: int, h: int, fps: int, audio: Path, a_start_ms: int, 
         "-c:a", "aac", "-b:a", f"{audio_kbps}k", "-t", total, "-movflags", "+faststart",
         "-f", "mp4", str(out),
     ]
+
+
+def has_audio(path: Path) -> bool:
+    """Does this file (audio or video) have a sound track?"""
+    out = subprocess.run([ffmpeg_exe(), "-hide_banner", "-i", str(path)], capture_output=True, text=True,
+                         creationflags=NO_WINDOW).stderr
+    return re.search(r"Stream #\d+:\d+.*: Audio:", out) is not None
+
+
+class Layer(NamedTuple):
+    """A background shown over the base one from start_ms until end_ms of the video (manual mode: per batch)."""
+    file: Path  # an image already scaled to the frame size, or a video
+    start_ms: int
+    end_ms: int
+
+
+def _bg_input(path: Path, fps: int, freeze: bool, seconds: float | None = None) -> list[str]:
+    limit = ["-t", f"{seconds:.3f}"] if seconds is not None else []
+    if not is_video(path):
+        return ["-loop", "1", "-framerate", str(fps), *limit, "-i", str(path)]
+    loop = [] if freeze else ["-stream_loop", "-1"]
+    return [*loop, *limit, "-an", "-threads", "2", "-i", str(path)]  # -an: ignore its audio
+
+
+def build_manual_cmd(exe: str, w: int, h: int, fps: int, audio: Path, a_start_ms: int, dur_ms: int, out: Path,
+                     base: Path | None, base_color: str, layers: list[Layer], dim: float = 0.0, crf: int = 20,
+                     audio_kbps: int = 192, freeze: bool = False) -> list[str]:
+    """Manual mode's command: the user's own recording, and backgrounds that can change from batch to batch.
+
+    Without `base` or `layers` the frames are complete and are only encoded, as in build_cmd. Otherwise the
+    frames are the text layer, laid over `base` (or the theme colour `base_color`) with each layer shown over it
+    during its own time. Pictures are dimmed here by `dim` (0..1), so the solid colour never is. Only the first
+    sound track of `audio` is used."""
+    dur = f"{dur_ms / 1000:.3f}"
+    for path in [base, *(layer.file for layer in layers)]:
+        if path is not None and not Path(path).is_file():
+            raise FFmpegError(f"Background file not found: {path}")
+    cover = f"scale={w}:{h}:force_original_aspect_ratio=increase,crop={w}:{h},setsar=1,fps={fps}"
+    veil = f",drawbox=c=black@{dim:.3f}:t=fill" if dim > 0 else ""
+    inputs: list[str] = []
+    frames_in = len(layers) + (base is not None)  # inputs, in order: base, layers, the frames on stdin, the sound
+    if base is None and not layers:
+        chains = ["[0:v]format=yuv420p[v]"]
+    else:
+        if base is not None:
+            inputs += _bg_input(base, fps, freeze)
+            hold = ",tpad=stop_mode=clone:stop=-1" if freeze and is_video(base) else ""
+            chains = [f"[0:v]{cover}{hold}{veil}[b0]"]
+        else:
+            chains = [f"color=c={base_color.replace('#', '0x')}:s={w}x{h}:r={fps}[b0]"]
+        for k, layer in enumerate(layers, 1):
+            first, last = (round(ms * fps / 1000) for ms in (layer.start_ms, layer.end_ms))  # frame numbers
+            seconds = max(last - first, 1) / fps
+            hold = (f",tpad=stop_mode=clone:stop=-1,trim=duration={seconds:.3f}"
+                    if freeze and is_video(layer.file) else "")
+            inputs += _bg_input(layer.file, fps, freeze, seconds)
+            # moved to start at its first frame, and enabled from half a frame before it to half a frame before
+            # its end, so float rounding never shows it a frame early or late
+            chains.append(f"[{k - (base is None)}:v]{cover}{hold}{veil},"
+                          f"setpts=PTS-STARTPTS+{first / fps:.6f}/TB[l{k}]")
+            chains.append(f"[b{k - 1}][l{k}]overlay=eof_action=pass:"
+                          f"enable='gte(t,{(first - 0.5) / fps:.4f})*lt(t,{(last - 0.5) / fps:.4f})'[b{k}]")
+        chains.append(f"[b{len(layers)}][{frames_in}:v]overlay=shortest=1:format=auto,format=yuv420p[v]")
+    return [
+        exe, "-y", "-hide_banner", "-loglevel", "error",
+        *inputs,
+        "-thread_queue_size", "1", "-f", "rawvideo", "-pix_fmt", "rgba", "-s", f"{w}x{h}", "-r", str(fps), "-i", "-",
+        "-ss", f"{a_start_ms / 1000:.3f}", "-t", dur, "-i", str(audio),
+        "-filter_complex", ";".join(chains),
+        "-map", "[v]", "-map", f"{frames_in + 1}:a:0",
+        "-threads", "2", "-c:v", "libx264", "-preset", "veryfast", "-crf", str(crf),
+        "-c:a", "aac", "-b:a", f"{audio_kbps}k", "-t", dur, "-movflags", "+faststart",
+        "-f", "mp4", str(out),
+    ]

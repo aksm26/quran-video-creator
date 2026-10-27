@@ -10,6 +10,7 @@ class Chapter:
     name_simple: str
     verses_count: int
     bismillah_pre: bool
+    pages: tuple[int, int] = (0, 0)  # first and last page in the Madani mushaf (0 when unknown)
 
 
 @dataclass(frozen=True)
@@ -30,6 +31,8 @@ class Word:
     position: int
     text: str  # text_uthmani, exactly as returned by the API
     is_end: bool  # the ayah-number glyph
+    page: int = 0  # page and line in the Madani mushaf (0 when unknown)
+    line: int = 0
 
 
 @dataclass(frozen=True)

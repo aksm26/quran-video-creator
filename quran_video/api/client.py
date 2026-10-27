@@ -111,7 +111,8 @@ class QuranClient:
         return data
 
     def chapters(self) -> list[Chapter]:
-        return [Chapter(c["id"], c["name_arabic"], c["name_simple"], c["verses_count"], c["bismillah_pre"])
+        return [Chapter(c["id"], c["name_arabic"], c["name_simple"], c["verses_count"], c["bismillah_pre"],
+                        tuple(c.get("pages") or (0, 0)))
                 for c in self._json("v4/chapters", language="en")["chapters"]]
 
     def reciters(self) -> list[Reciter]:
@@ -127,7 +128,8 @@ class QuranClient:
             page_data = self._json(f"v4/verses/by_chapter/{chapter}", words="true", word_fields=text_field,
                                    per_page=50, page=page, **extra)
             for v in page_data["verses"]:
-                words = tuple(Word(w["position"], w[text_field], w["char_type_name"] == "end") for w in v["words"])
+                words = tuple(Word(w["position"], w[text_field], w["char_type_name"] == "end",
+                                   w.get("page_number") or 0, w.get("line_number") or 0) for w in v["words"])
                 text = ""
                 if translation and v.get("translations"):
                     text = clean_translation(v["translations"][0]["text"])

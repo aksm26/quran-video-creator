@@ -1,3 +1,4 @@
 PySide6-Essentials>=6.7
+PySide6-Addons>=6.7  # Qt Multimedia: plays the recording while times are set in manual mode
 requests>=2.31
 imageio-ffmpeg==0.6.0  # pinned: THIRD_PARTY.md names the FFmpeg version it bundles
