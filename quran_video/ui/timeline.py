@@ -47,6 +47,7 @@ class Timeline(QWidget):
         super().__init__()
         self.follow = follow
         self.setMouseTracking(True)
+        self.setLayoutDirection(Qt.LayoutDirection.LeftToRight)  # time runs left to right in every language
         self.setMinimumHeight(132 if follow else 112)
         self.colors = PALETTES["Light"]
         self.length = 1  # ms

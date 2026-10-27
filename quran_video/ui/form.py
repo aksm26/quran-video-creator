@@ -55,6 +55,12 @@ def clock(ms: int | None) -> str:
     return f"{int(m)}:{s:04.1f}"
 
 
+def ltr(text: str) -> str:
+    """Text that always reads left to right, even inside a right-to-left sentence: verse references and times
+    ('2:255:3-5', '0:03.2 - 0:07.9'), whose order the Unicode bidi rules would otherwise flip."""
+    return f"\u2066{text}\u2069"
+
+
 def set_item_enabled(combo: QComboBox, data, enabled: bool) -> None:
     item = combo.model().item(combo.findData(data))
     if item is not None:

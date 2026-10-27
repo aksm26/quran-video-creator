@@ -37,6 +37,8 @@ class PickView(QWidget):
         super().__init__()
         self.setMouseTracking(True)
         self.setFocusPolicy(Qt.FocusPolicy.ClickFocus)
+        # Words are placed by hand, each line in its own script's direction: the app's language never flips them.
+        self.setLayoutDirection(Qt.LayoutDirection.LeftToRight)
         self.colors = PALETTES["Light"]
         self.message = ""  # shown instead of the words (while loading, or when there is nothing to show)
         self._items: list[tuple[QRectF, object]] = []
@@ -304,13 +306,15 @@ class TokenView(PickView):
         for rect, ref, text, rtl in self._layout(self.width())[0]:
             if ref is None:  # the verse number above its translation
                 p.setPen(QColor(c["muted"]))
+                p.setLayoutDirection(Qt.LayoutDirection.LeftToRight)
                 align = Qt.AlignmentFlag.AlignRight if rtl else Qt.AlignmentFlag.AlignLeft
-                p.drawText(rect, align | Qt.AlignmentFlag.AlignVCenter, text)
+                p.drawText(rect, align | Qt.AlignmentFlag.AlignAbsolute | Qt.AlignmentFlag.AlignVCenter, text)
                 continue
             rtl_page = rtl_page or rtl
             hit = rect.adjusted(-half, 1, half, -1)
             self._paint_back(p, hit, ref)
             p.setPen(QColor(c["text"]))
+            p.setLayoutDirection(Qt.LayoutDirection.RightToLeft if rtl else Qt.LayoutDirection.LeftToRight)
             p.drawText(rect, Qt.AlignmentFlag.AlignCenter, text)
             self._items.append((hit, ref))
         self._paint_badges(p, rtl=rtl_page)

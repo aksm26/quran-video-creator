@@ -20,7 +20,7 @@ from ..core.manual import (END, START, TRANS_TRACK, ManualJob, file_end, label, 
 from ..core.manual_export import ManualPreview
 from ..core.render import load_font
 from ..i18n import tr
-from .form import clock
+from .form import clock, ltr
 from .timeline import ARABIC, TRANSLATION, TRIM, Block, Timeline
 from .widgets import NoWheelCombo
 
@@ -166,8 +166,8 @@ class TimingWindow(QDialog):
         info.addWidget(self.next_title)
         info.addWidget(self.next_text)
         info.addStretch()
-        self.keys = QLabel(tr("Space: play or pause.  S: start the next batch.  E: end this batch.  "
-                              "W: light the next word.  Arrows: move 1 s (Shift: 5 s).  Ctrl+Z: undo."))
+        self.keys = QLabel(tr("Space: play or pause. S: start the next batch. E: end this batch. "
+                              "W: light the next word. Arrows: move 1 s (Shift: 5 s). Ctrl+Z: undo."))
         self.keys.setObjectName("muted")
         self.keys.setWordWrap(True)
         info.addWidget(self.keys)
@@ -223,11 +223,12 @@ class TimingWindow(QDialog):
             b.setFocusPolicy(Qt.FocusPolicy.NoFocus)
             b.clicked.connect(slot)
             if shortcut:
-                b.setToolTip(shortcut)
-                QShortcut(QKeySequence(shortcut), self, activated=slot)
-            if key == "Tap word":
-                b.setEnabled(self.job.highlight != "none")
-                b.setToolTip(shortcut if b.isEnabled() else tr("Turn on Highlight to set each word's time."))
+                keys = QKeySequence(shortcut)
+                b.setToolTip(keys.toString(QKeySequence.SequenceFormat.NativeText))  # the key's name in the language
+                QShortcut(keys, self, activated=slot)
+            if key == "Tap word" and self.job.highlight == "none":
+                b.setEnabled(False)
+                b.setToolTip(tr("Turn on Highlight to set each word's time."))
             row.addWidget(b)
         row.addStretch()
         buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
@@ -324,7 +325,7 @@ class TimingWindow(QDialog):
         for line in (self.overview, self.detail):
             line.set_playhead(t)
         self.play_btn.setText(tr("Pause") if self.clock.playing else tr("Play"))
-        self.time.setText(f"{clock(t)} / {clock(self.audio_ms)}")
+        self.time.setText(ltr(f"{clock(t)} / {clock(self.audio_ms)}"))
         if self.preview is not None:
             self.picture.setPixmap(QPixmap.fromImage(self.preview.frame(t)))
         self._show_batches(t)
@@ -341,7 +342,7 @@ class TimingWindow(QDialog):
             self.now_trans.setText("")
         else:
             b = self.batches[k]
-            self.now_title.setText(f"{tr('Batch {n}').format(n=k + 1)} · {label(b.first, b.last)}")
+            self.now_title.setText(f"{tr('Batch {n}').format(n=k + 1)} · {ltr(label(b.first, b.last))}")
             cells = [c for c in self._cells_of(k) if not c.sign]
             nxt = self.word[1] if self.job.highlight != "none" and self.word[0] == k else None  # W lights it
             self.now_text.setText(" ".join(f"<u>{c.text}</u>" if i == nxt else c.text for i, c in enumerate(cells)))
@@ -350,7 +351,8 @@ class TimingWindow(QDialog):
         n = self.cursor if self.on_arabic.isChecked() else None
         if n is not None and 0 <= n < len(self.batches):
             nb = self.batches[n]
-            self.next_title.setText(f"{tr('Press S to start batch {n}').format(n=n + 1)} · {label(nb.first, nb.last)}")
+            self.next_title.setText(f"{tr('Press S to start batch {n}').format(n=n + 1)} · "
+                                    f"{ltr(label(nb.first, nb.last))}")
             self.next_text.setText(" ".join(c.text for c in self._cells_of(n) if not c.sign))
         elif self.on_translation.isChecked() and 0 <= self.t_cursor < len(self.trans_batches):
             tb = self.trans_batches[self.t_cursor]

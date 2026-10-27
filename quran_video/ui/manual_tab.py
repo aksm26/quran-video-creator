@@ -29,7 +29,7 @@ from ..core.render import load_font
 from ..core.timing import DataError
 from ..i18n import tr
 from .form import (GROUP_GAP, MEDIA_FILTER, PANEL_WIDTH, SLIDERS, Form, clock, fill_themes, fill_translations,
-                   fmt_duration, relabel_themes, set_item_enabled)
+                   fmt_duration, ltr, relabel_themes, set_item_enabled)
 from .mushaf import Mark, MushafView, TokenView
 from .widgets import NoWheelCombo, VerseCombo
 
@@ -371,12 +371,12 @@ class ManualTab(QWidget):
             self.length.setText(tr("Reading the audio…"))
 
     def _batch_text(self, n: int, b: Batch) -> str:
-        times = clock(b.start_ms) if b.start_ms is not None else tr("No time yet")
+        times = ltr(clock(b.start_ms)) if b.start_ms is not None else tr("No time yet")
         if b.start_ms is not None and b.end_ms is not None:
-            times += f" - {clock(b.end_ms)}"
-        lines = [f"{n}.  {label(b.first, b.last)}    {times}"]
+            times = ltr(f"{clock(b.start_ms)} - {clock(b.end_ms)}")
+        lines = [f"{n}.  {ltr(label(b.first, b.last))}    {times}"]
         if b.translation and not self.track.isChecked():
-            lines.append(f"     {tr('Translation')}: {label(b.translation.first, b.translation.last)}")
+            lines.append(f"     {tr('Translation')}: {ltr(label(b.translation.first, b.translation.last))}")
         if b.background:
             lines.append(f"     {tr('Background')}: {b.background.name}")
         return "\n".join(lines)
@@ -395,8 +395,8 @@ class ManualTab(QWidget):
 
     @staticmethod
     def _trans_text(n: int, t: TransBatch) -> str:
-        times = clock(t.start_ms) if t.start_ms is not None else tr("No time yet")
-        return f"{n}.  {label(t.range.first, t.range.last)}    {times}"
+        times = ltr(clock(t.start_ms)) if t.start_ms is not None else tr("No time yet")
+        return f"{n}.  {ltr(label(t.range.first, t.range.last))}    {times}"
 
     # ---------------------------------------------------------------- the mushaf
     def set_chapters(self, chapters: list[Chapter]) -> None:
@@ -758,6 +758,7 @@ class ManualTab(QWidget):
             self.batches, self.trans_batches, self.trim = window.batches, window.trans_batches, window.trim
             self._fill_lists()
             self._changed()
+        window.deleteLater()  # it holds a player and a preview: free them now, not when the tab goes
 
     # ---------------------------------------------------------------- saved between runs
     def save(self) -> None:

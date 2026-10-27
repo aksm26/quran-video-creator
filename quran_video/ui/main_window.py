@@ -890,11 +890,11 @@ class MainWindow(QMainWindow):
         self._apply_info()
 
     def _apply_info(self) -> None:
+        info = self._info
+        self.preview_title.setText(f"{tr('Preview')} · {fmt_duration(info.seconds)}" if info else tr("Preview"))
         if self._manual_mode():
             self._apply_manual_info()
             return
-        info = self._info
-        self.preview_title.setText(f"{tr('Preview')} · {fmt_duration(info.seconds)}" if info else tr("Preview"))
         if not info:
             self.export_btn.setText(tr("Export"))
             return
