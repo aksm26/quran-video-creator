@@ -10,7 +10,7 @@ be kept longer than a week)."""
 
 import re
 from collections.abc import Callable, Iterable
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 
 from ..api.models import Chapter, Verse
@@ -19,7 +19,6 @@ from ..config.presets import FORMATS
 from ..config.quality import DEFAULT_QUALITY, QUALITIES
 from ..config.themes import DEFAULT_THEME, THEMES, add_custom, is_builtin, make_custom
 from ..config.translations import TRANSLATIONS
-from .ffmpeg import is_video
 from .render import DEFAULT_TEXT_WIDTH, HIGHLIGHT_NONE, REVEAL_OFF
 from .timing import DataError, Seg
 from .translation import is_spaced, letter_weight, split_translation, tokens
@@ -28,7 +27,6 @@ PROJECT_VERSION = 1
 PROJECT_SUFFIX = ".qvc"
 TRANS_ATTACHED, TRANS_TRACK = "attached", "track"  # translations go with the batches, or have their own times
 START, END = "start", "end"
-MAX_BG_VIDEOS = 6  # ffmpeg decodes every background video at once: each costs 100-150 MB
 PAGES = 604  # pages of the Madani mushaf
 
 VersesOf = Callable[[int], list[Verse]]  # every verse of a surah, words and translation (QuranClient.verses)
@@ -459,15 +457,17 @@ def compile_scenes(job: ManualJob, verses_of: VersesOf, fits: Callable[[str], bo
 
 def background_layers(job: ManualJob, audio_ms: int) -> list[tuple[Path, int, int]]:
     """Each batch's own picture or video and when it shows (ms on the video): from the batch's start until the
-    next batch starts, so a short pause doesn't flash the colour behind. Neighbours with the same file are one
-    layer, so a video carries on instead of starting again."""
+    next batch that has a background starts. Batches without one keep the picture before them, so it never drops
+    to the theme colour between two videos. Neighbours with the same file are one layer, so a video carries on
+    instead of starting again."""
     off, end = job.trim_start_ms, file_end(job, audio_ms)
     slots = [b.slot for b in job.batches]
     layers: list[tuple[Path, int, int]] = []
     for k, (b, w) in enumerate(zip(job.batches, windows(slots, end))):
         if not w or b.background is None:
             continue
-        nxt = next((s for s, _ in slots[k + 1:] if s is not None), end)
+        later = next((j for j in range(k + 1, len(job.batches)) if job.batches[j].background is not None), None)
+        nxt = next((s for s, _ in slots[later:] if s is not None), end) if later is not None else end
         a, z = max(w[0] - off, 0), min(nxt, end) - off
         if z <= a:
             continue
@@ -498,9 +498,6 @@ def check(job: ManualJob, audio_seconds: float | None, has_sound: bool) -> None:
         k = out_of_order([t.slot for t in job.trans_batches])
         if k is not None:
             raise DataError("The times are out of order at translation {n}.", n=k + 1)
-    videos = {p for p in [job.background, *(b.background for b in job.batches)] if is_video(p)}
-    if len(videos) > MAX_BG_VIDEOS:
-        raise DataError("Use at most {n} background videos.", n=MAX_BG_VIDEOS)
 
 
 # The mushaf page on screen.
@@ -526,9 +523,27 @@ def chapters_on(page: int, chapters: list[Chapter]) -> list[Chapter]:
     return [c for c in chapters if c.pages[0] <= page <= c.pages[1]]
 
 
+def _corrected_pages(verses: list[Verse]) -> list[Verse]:
+    """The API sometimes puts a verse on the page after the one it belongs to (89:23 and 6:131 on 2026-11-19).
+    A whole verse that ends on the same page as the next verse, but after it in line order, is moved back one
+    page; the words and lines themselves are left alone."""
+    out = list(verses)
+    for i in range(1, len(out) - 1):
+        v, nxt = out[i], out[i + 1]
+        prev = out[i - 1].words[-1] if out[i - 1].words else None
+        if not v.words or not nxt.words or prev is None:
+            continue
+        last, first = v.words[-1], nxt.words[0]
+        pages = {w.page for w in v.words if w.page}
+        if (last.page > 1 and last.page == first.page and last.line > first.line
+                and pages == {last.page} and prev.page == last.page - 1):
+            out[i] = replace(v, words=tuple(replace(w, page=w.page - 1) for w in v.words))
+    return out
+
+
 def page_of(chapter: int, verse: int, verses_of: VersesOf) -> int:
     """The mushaf page a verse starts on (0 when unknown)."""
-    verses = verses_of(chapter)
+    verses = _corrected_pages(verses_of(chapter))
     if not 1 <= verse <= len(verses):
         return 0
     return next((w.page for w in verses[verse - 1].words if w.page), 0)
@@ -545,7 +560,7 @@ def mushaf_page(page: int, chapters: list[Chapter], verses_of: VersesOf) -> Mush
     by_line: dict[int, list[Cell]] = {}
     starts: dict[int, int] = {}  # surah -> line of its first word, for the surahs that start on this page
     for ch in on:
-        for verse in verses_of(ch.id):
+        for verse in _corrected_pages(verses_of(ch.id)):
             n, k = len(verse.text_words), 0
             for w in verse.words:
                 k += not w.is_end

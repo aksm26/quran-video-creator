@@ -20,8 +20,8 @@ from quran_video.core.layout import wrap
 from quran_video.core.manual import (END, LINE_BASMALA, LINE_EMPTY, LINE_SURAH, LINE_WORDS, START, TRANS_TRACK,
                                      Batch, ManualJob, TokenRange, TokenRef, TransBatch, WordRef, background_layers,
                                      check, compile_scenes, fit_pieces, from_json, label, limits, mark,
-                                     mushaf_page, out_of_order, set_time, tap, to_json, trans_text, windows,
-                                     word_times, words_of)
+                                     mushaf_page, out_of_order, page_of, set_time, tap, to_json, trans_text,
+                                     windows, word_times, words_of)
 from quran_video.core.manual_export import manual_credits, prepare_manual
 from quran_video.core.render import HIGHLIGHT_KEEP, RenderOptions, TextRenderer
 from quran_video.core.timing import ALL, Clip, DataError, State, state_at
@@ -143,14 +143,15 @@ def test_a_batch_crossing_into_the_next_surah_changes_the_name_at_its_first_word
     assert [c.sign for c in shown[0].cells] == [False, False, True] and [s.pos for s in shown[1].segs] == [1, 2]
 
 
-def test_each_batch_background_shows_until_the_next_batch_and_repeats_join_up():
+def test_each_batch_background_shows_until_the_next_background_and_repeats_join_up():
     bg = Path("sea.mp4")
     batches = [Batch(WordRef(112, 1, 1), WordRef(112, 1, 1), 1000, 2000, background=bg),
                Batch(WordRef(112, 2, 1), WordRef(112, 2, 1), 2500, 3000, background=bg),
                Batch(WordRef(112, 3, 1), WordRef(112, 3, 1), 4000, None),
                Batch(WordRef(112, 4, 1), WordRef(112, 4, 1), 5000, None, background=Path("sky.png"))]
+    # The sea carries through the batch without a background (4000-5000), not just to its start.
     assert background_layers(job(batches=batches, trim_start_ms=500), 8000) == [
-        (bg, 500, 3500), (Path("sky.png"), 4500, 7500)]
+        (bg, 500, 4500), (Path("sky.png"), 4500, 7500)]
 
 
 def test_a_job_that_cannot_be_made_says_why(tmp_path):
@@ -166,9 +167,8 @@ def test_a_job_that_cannot_be_made_says_why(tmp_path):
     with pytest.raises(DataError, match="out of order at batch 2"):
         check(replace(ok, batches=[Batch(WordRef(112, 1, 1), WordRef(112, 1, 1), 2000, 5000),
                                    Batch(WordRef(112, 1, 1), WordRef(112, 1, 1), 3000)]), 10.0, True)
-    many = [Batch(WordRef(112, 1, 1), WordRef(112, 1, 1), n * 1000, background=Path(f"{n}.mp4")) for n in range(7)]
-    with pytest.raises(DataError, match="at most 6"):
-        check(replace(ok, batches=many), 10.0, True)
+    many = [Batch(WordRef(112, 1, 1), WordRef(112, 1, 1), n * 1000, background=Path(f"{n}.mp4")) for n in range(9)]
+    check(replace(ok, batches=many), 10.0, True)  # any number of background videos is allowed
 
 
 # ---- the mushaf page
@@ -181,6 +181,28 @@ def test_a_mushaf_page_puts_the_surah_names_and_basmala_on_the_empty_lines():
     third = page.lines[2].cells
     assert [str(c.ref) for c in third] == ["111:1:1", "111:1:2", "111:1:3", "111:1:4", "111:1:4"] and third[-1].sign
     assert [line.kind for line in mushaf_page(604, CHAPTERS, verses_of).lines[:4]] == [LINE_WORDS] * 4
+
+
+def test_a_verse_the_api_puts_on_the_next_page_is_moved_back():
+    # Al-Fajr 89:23 belongs to page 593, but the API returns page 594 lines 14-15, before 89:24 on line 1.
+    ch = Chapter(89, "الفجر", "Al-Fajr", 30, True, (593, 594))
+    verses = [Verse(f"89:{n}", n, (Word(1, f"v{n}", False, 593, 13),), "") for n in range(1, 22)]
+    verses += [Verse("89:22", 22, (Word(1, "before", False, 593, 14),), ""),
+               Verse("89:23", 23, (Word(1, "wrong", False, 594, 14), Word(2, "verse", False, 594, 15)), ""),
+               Verse("89:24", 24, (Word(1, "after", False, 594, 1),), "")]
+
+    def source(chapter: int) -> list[Verse]:
+        if chapter == 89:
+            return verses
+        return [Verse("1:1", 1, (Word(1, "بسم", False, 1, 1),), "")] if chapter == 1 else []
+
+    assert page_of(89, 23, source) == 593
+    bottom = [(line.number, c.text) for line in mushaf_page(593, [ch], source).lines
+              if line.number >= 14 for c in line.cells]
+    assert bottom == [(14, "before"), (14, "wrong"), (15, "verse")]
+    fourth = [c.text for line in mushaf_page(594, [ch], source).lines if line.kind == LINE_WORDS
+              for c in line.cells]
+    assert fourth == ["after"]
 
 
 # ---- project files

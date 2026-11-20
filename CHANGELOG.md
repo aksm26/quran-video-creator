@@ -1,5 +1,13 @@
 # Changelog
 
+## 2.0.2 (20 November 2026)
+
+- In manual mode, a background video set for a batch now continues through the batches after it that have no
+  background of their own, until the next batch that has one. It no longer drops to the theme colour (black and
+  white) in between, and the number of background videos is no longer limited to six.
+- The mushaf now puts Al-Fajr 89:23 on page 593, where it belongs. A general correction also covers other verses
+  that the API places on the page after the one they belong to.
+
 ## 2.0.1 (27 October 2026)
 
 - In auto mode, the ⓘ next to Export now also asks you to watch the video before uploading it: the timings can
