@@ -9,6 +9,7 @@ from typing import NamedTuple
 
 IMAGE_EXTS = {".png", ".jpg", ".jpeg", ".webp", ".bmp"}
 NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)  # Windows: no console window flashes up per ffmpeg call
+BG_FADE_MS = 250  # a batch background fades in over the one before it, instead of changing in one frame
 
 
 class FFmpegError(Exception):
@@ -136,7 +137,7 @@ def build_manual_cmd(exe: str, w: int, h: int, fps: int, audio: Path, a_start_ms
         if path is not None and not Path(path).is_file():
             raise FFmpegError(f"Background file not found: {path}")
     cover = f"scale={w}:{h}:force_original_aspect_ratio=increase,crop={w}:{h},setsar=1,fps={fps}"
-    veil = f",drawbox=c=black@{dim:.3f}:t=fill" if dim > 0 else ""
+    veil = f",drawbox=c=black@{dim:.3f}:t=fill:replace=0" if dim > 0 else ""  # blend, never replace: keeps colour
     inputs: list[str] = []
     frames_in = len(layers) + (base is not None)  # inputs, in order: base, layers, the frames on stdin, the sound
     if base is None and not layers:
@@ -151,15 +152,24 @@ def build_manual_cmd(exe: str, w: int, h: int, fps: int, audio: Path, a_start_ms
         for k, layer in enumerate(layers, 1):
             first, last = (round(ms * fps / 1000) for ms in (layer.start_ms, layer.end_ms))  # frame numbers
             seconds = max(last - first, 1) / fps
-            hold = (f",tpad=stop_mode=clone:stop=-1,trim=duration={seconds:.3f}"
+            fade = min(BG_FADE_MS / 1000, seconds / 2)
+            nxt = layers[k].start_ms if k < len(layers) else None
+            cross = nxt is not None and nxt <= layer.end_ms + BG_FADE_MS  # the next layer starts where this one ends
+            shown = seconds + (fade if cross else 0)  # keep this one under the next until its fade-in is done
+            hold = (f",tpad=stop_mode=clone:stop=-1,trim=duration={shown:.3f}"
                     if freeze and is_video(layer.file) else "")
-            inputs += _bg_input(layer.file, fps, freeze, seconds)
+            inputs += _bg_input(layer.file, fps, freeze, shown)
+            start = first / fps
+            # Fade in over the picture before it (the base or the previous batch), so a change is a quick
+            # cross-fade instead of a cut. The previous layer stays on screen underneath until this one is opaque.
+            fade_in = f",format=rgba,fade=t=in:st={start:.6f}:d={fade:.3f}:alpha=1" if fade > 0 else ""
             # moved to start at its first frame, and enabled from half a frame before it to half a frame before
             # its end, so float rounding never shows it a frame early or late
             chains.append(f"[{k - (base is None)}:v]{cover}{hold}{veil},"
-                          f"setpts=PTS-STARTPTS+{first / fps:.6f}/TB[l{k}]")
+                          f"setpts=PTS-STARTPTS+{start:.6f}/TB{fade_in}[l{k}]")
+            end = start + shown
             chains.append(f"[b{k - 1}][l{k}]overlay=eof_action=pass:"
-                          f"enable='gte(t,{(first - 0.5) / fps:.4f})*lt(t,{(last - 0.5) / fps:.4f})'[b{k}]")
+                          f"enable='gte(t,{start - 0.5 / fps:.4f})*lt(t,{end - 0.5 / fps:.4f})'[b{k}]")
         chains.append(f"[b{len(layers)}][{frames_in}:v]overlay=shortest=1:format=auto,format=yuv420p[v]")
     return [
         exe, "-y", "-hide_banner", "-loglevel", "error",

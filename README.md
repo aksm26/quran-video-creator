@@ -43,6 +43,7 @@ All downloads: [Releases page](https://github.com/aksm26/quran-video-creator/rel
   timings can contain errors.
 - **2.0.2:** in manual mode, batch background videos keep playing through batches without one, there is no
   six-video limit, and Al-Fajr's mushaf page is correct.
+- **2.0.3:** dimmed backgrounds keep their colour, and a change of batch background cross-fades quickly.
 - **Also new in 1.3:** a new app icon, and the downloads are now `QVC.AppImage`, `QVC-Windows.zip` and
   `QVC-macOS.dmg`.
 

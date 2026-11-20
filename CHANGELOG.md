@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.0.3 (20 November 2026)
+
+- In manual mode, dimming a background now makes it darker without draining its colour, so a batch background no
+  longer turns black and white.
+- When the background changes from one batch to the next, the new picture now fades in quickly instead of cutting.
+
 ## 2.0.2 (20 November 2026)
 
 - In manual mode, a background video set for a batch now continues through the batches after it that have no

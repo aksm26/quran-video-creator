@@ -310,6 +310,39 @@ def test_has_audio_and_per_batch_backgrounds_show_at_their_own_times(tmp_path):
     assert [colour(t) for t in (0.5, 1.5, 2.2, 3.0, 3.8)] == ["#00fe00", "#fc0000", "#00fe00", "#0000fe", "#00fe00"]
 
 
+def test_a_dimmed_background_keeps_its_colour_and_batch_changes_cross_fade(tmp_path):
+    exe = ffmpeg_exe()
+
+    def make(*args):
+        subprocess.run([exe, "-y", "-loglevel", "error", *args], check=True)
+    make("-f", "lavfi", "-i", "color=c=red:s=64x64", "-frames:v", "1", str(tmp_path / "red.png"))
+    make("-f", "lavfi", "-i", "color=c=blue:s=64x64", "-frames:v", "1", str(tmp_path / "blue.png"))
+    make("-f", "lavfi", "-i", "sine=f=440:d=3", str(tmp_path / "tone.wav"))
+    clear = b"\0" * (64 * 64 * 4)
+
+    def rgb(video, t):
+        px = subprocess.run([exe, "-v", "error", "-ss", str(t), "-i", str(video), "-frames:v", "1", "-vf",
+                             "crop=2:2:32:32", "-f", "rawvideo", "-pix_fmt", "rgb24", "-"],
+                            capture_output=True, check=True).stdout
+        return tuple(px[:3])
+
+    dimmed = tmp_path / "dimmed.mp4"
+    cmd = build_manual_cmd(exe, 64, 64, 30, tmp_path / "tone.wav", 0, 1000, dimmed, None, "#00FF00",
+                           [Layer(tmp_path / "red.png", 0, 1000)], dim=0.6)
+    subprocess.run(cmd, input=clear * 30, check=True, capture_output=True)
+    r, g, b = rgb(dimmed, 0.8)
+    assert r > 2 * g and r > 2 * b  # black blending must not desaturate the picture
+
+    faded = tmp_path / "faded.mp4"
+    cmd = build_manual_cmd(exe, 64, 64, 30, tmp_path / "tone.wav", 0, 2000, faded, None, "#00FF00",
+                           [Layer(tmp_path / "red.png", 0, 1000), Layer(tmp_path / "blue.png", 1000, 2000)])
+    subprocess.run(cmd, input=clear * 60, check=True, capture_output=True)
+    r, _, b = rgb(faded, 1.1)  # halfway through the red -> blue fade
+    assert r > 20 and b > 20
+    r, _, b = rgb(faded, 1.4)  # and the new background is fully in
+    assert b > 200 and r < 20
+
+
 # ---- the window (offline: the fake mushaf above, tasks run at once)
 class FakeClient:
     def verses(self, chapter, text_field="text_uthmani", translation=None):
