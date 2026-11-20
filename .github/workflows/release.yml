@@ -31,7 +31,7 @@ jobs:
         include:
           - {os: ubuntu-22.04, asset: QVC.AppImage}
           - {os: windows-latest, asset: QVC-Windows.zip}
-          - {os: macos-14, asset: QVC-macOS.dmg}  # Apple Silicon only
+          - {os: macos-15, asset: QVC-macOS.dmg}  # Apple Silicon only
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v5
